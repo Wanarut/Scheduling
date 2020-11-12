@@ -14,26 +14,36 @@ Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M 
 
 def main():
     tasks = pd.read_excel('Optimizing-CMU.xlsm', sheet_name='Task_Table')
-    # tasks = tasks[tasks['Summary']=='No']
 
+    tasks = create_constraints(tasks)
+    print(tasks)
     # Create starting population
-    population = create_population(starting_population_size, len(tasks))
+    population = create_population(starting_population_size, len(tasks), tasks['Total_Float'])
+    print(population)
 
-    TF = create_constraints(tasks)
 
-
-def create_population(individuals, chromosome_length):
+def create_population(individuals, chromosome_length, constraints):
     """
     Create random population with given number of individuals and chroosome length.
     """
     # Set up an initial array of all zeros
     population = np.zeros((individuals, chromosome_length))
+    # Loop through each row (individual)
+    for i in range(individuals):
+        # Loop through each task (chromosome)
+        for j in range(chromosome_length):
+            # zero day for summary job
+            if constraints[j].days < 0 :
+                continue
+            # random number of shift day
+            shiftday = rn.randint(0, constraints[j].days)
+            population[i, j] = shiftday
 
     return population
 
 
 def create_constraints(tasks):
-    for _ in range(2):
+    for _ in range(4):
         # Forward calculate (Early_Start, Early_Finish)
         for i in range(len(tasks)):
             predecessors = tasks.at[i, 'Predecessors']
@@ -188,12 +198,15 @@ def create_constraints(tasks):
         # print(tasks[['Early_Start', 'Early_Finish', 'Late_Start', 'Late_Finish']])
         # print('###########################################################################################')
     # Filter
-    tasks = tasks[tasks['Summary']=='No']
-    # print(tasks[['Early_Start', 'Early_Finish', 'Late_Start', 'Late_Finish']])
+    # tasks = tasks[tasks['Summary']=='No']
+    # print(tasks)
+    # tasks = tasks.reset_index()
+    # print(tasks)
     #TF Constraint
     tasks['Total_Float'] = tasks['Late_Finish'] - tasks['Early_Finish'] - pd.to_timedelta(tasks['Duration'])
-    # print(Total_Float)
-    print(tasks[['Early_Start', 'Early_Finish', 'Late_Start', 'Late_Finish', 'Total_Float']])
+    # for i in range(len(tasks)):
+    #     print(i, '\t', tasks.at[i, 'Early_Finish'], '\t', tasks.at[i, 'Late_Finish'], '\t', tasks.at[i, 'Duration'], '\t', tasks.at[i, 'Total_Float'])
+    # print(tasks[['Early_Start', 'Early_Finish', 'Late_Start', 'Late_Finish', 'Total_Float']])
     return tasks
 
     

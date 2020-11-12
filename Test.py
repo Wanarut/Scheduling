@@ -29,3 +29,7 @@ print(Project_Start)
 # h_set = str('35,40').split(',')
 # h_set = list(map(int, h_set))
 # print(h_set)
+
+import numpy as np
+s = np.random.randint(10, size=100)
+print(s)
