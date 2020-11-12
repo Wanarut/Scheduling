@@ -26,5 +26,6 @@ print(Project_Start)
 # FS_loc = str(predecessor).find('FS')
 # print(FS_loc)
 
-h = '35,37'
-print(h.split(','))
+# h_set = str('35,40').split(',')
+# h_set = list(map(int, h_set))
+# print(h_set)
