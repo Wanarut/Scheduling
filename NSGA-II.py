@@ -299,15 +299,15 @@ def breed_population(population):
 
 
 # Set general parameters
-chromosome_length = 50
-starting_population_size = 100
+chromosome_length = 100
+starting_population_size = 1000
 maximum_generation = 20
-minimum_population_size = 50
-maximum_population_size = 80
+minimum_population_size = 500
+maximum_population_size = 800
 
 # Create two reference solutions
 # (this is used just to illustrate GAs)
-references = create_reference_solutions(chromosome_length, 2)
+references = create_reference_solutions(chromosome_length, 3)
 
 # Create starting population
 population = create_population(
@@ -340,10 +340,11 @@ scores = scores[pareto_front]
 # Plot Pareto front (for two scores only)
 x = scores[:, 0]/chromosome_length*100
 y = scores[:, 1]/chromosome_length*100
+z = scores[:, 2]/chromosome_length*100
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(x, y, y, color='b', marker='^')
+ax.scatter(x, y, z, color='b', marker='o')
 
 ax.set_xlabel('Objective A - % maximum obtainable')
 ax.set_ylabel('Objective B - % maximum obtainable')
