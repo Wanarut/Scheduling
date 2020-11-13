@@ -7,6 +7,7 @@ starting_population_size = 10
 maximum_generation = 20
 minimum_population_size = 10
 maximum_population_size = 10
+number_of_objectives = 3
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -15,21 +16,42 @@ Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M 
 def main():
     tasks = pd.read_excel('Optimizing-CMU.xlsm', sheet_name='Task_Table')
 
-    tasks = create_constraints(tasks)
+    tasks = PDM_calculation(tasks=tasks)
     print(tasks)
     # Create starting population
-    population = create_population(starting_population_size, len(tasks), tasks['Total_Float'])
+    chromosome_length = len(tasks)
+    mutation_probability = 1.0/chromosome_length
+    population = create_population(starting_population_size, chromosome_length, tasks['Total_Float'])
     print(population)
 
+    # Loop through the generations of genetic algorithm
 
-def create_population(individuals, chromosome_length, constraints):
+    for generation in range(maximum_generation):
+        if generation % 10 == 0:
+            print('Generation (out of %i): %i ' % (maximum_generation, generation))
+
+        # Breed
+        population = breed_population(population)
+        population = randomly_mutate_population(population, mutation_probability, tasks['Total_Float'])
+
+        tasks = PDM_calculation(tasks=tasks, population=population)
+
+        # Score population
+        scores = score_population(tasks, population)
+
+        # # Build pareto front
+        # population = build_pareto_population(
+        #     population, scores, minimum_population_size, maximum_population_size)
+
+
+def create_population(individuals_size, chromosome_length, constraints):
     """
     Create random population with given number of individuals and chroosome length.
     """
     # Set up an initial array of all zeros
-    population = np.zeros((individuals, chromosome_length))
+    population = np.zeros((individuals_size, chromosome_length))
     # Loop through each row (individual)
-    for i in range(individuals):
+    for i in range(individuals_size):
         # Loop through each task (chromosome)
         for j in range(chromosome_length):
             # zero day for summary job
@@ -42,7 +64,103 @@ def create_population(individuals, chromosome_length, constraints):
     return population
 
 
-def create_constraints(tasks):
+def breed_population(population):
+    """
+    Create child population by repetedly calling breeding function (two parents
+    producing two children), applying genetic mutation to the child population,
+    combining parent and child population, and removing duplicatee chromosomes.
+    """
+    # Create an empty list for new population
+    new_population = []
+    population_size = population.shape[0]
+    # Create new popualtion generating two children at a time
+    for _ in range(int(population_size/2)):
+        parent_1 = population[rn.randint(0, population_size-1)]
+        parent_2 = population[rn.randint(0, population_size-1)]
+        child_1, child_2 = breed_by_crossover(parent_1, parent_2)
+        new_population.append(child_1)
+        new_population.append(child_2)
+
+    # Add the child population to the parent population
+    # In this method we allow parents and children to compete to be kept
+    population = np.vstack((np.array(new_population), population))
+    population = np.unique(population, axis=0)
+
+    return population
+
+
+def breed_by_crossover(parent_1, parent_2):
+    """
+    Combine two parent chromsomes by crossover to produce two children.
+    """
+    # Get length of chromosome
+    chromosome_length = len(parent_1)
+
+    # Pick crossover point, avoding ends of chromsome
+    crossover_point = rn.randint(1, chromosome_length-1)
+
+    # Create children. np.hstack joins two arrays
+    child_1 = np.hstack((parent_1[0:crossover_point],
+                         parent_2[crossover_point:]))
+
+    child_2 = np.hstack((parent_2[0:crossover_point],
+                         parent_1[crossover_point:]))
+
+    # Return children
+    return child_1, child_2
+
+
+def randomly_mutate_population(population, mutation_probability, constraints):
+    """
+    Randomly mutate population with a given individual gene mutation probability.
+    """
+    population_size = population.shape[0]
+    # Apply random mutation through each row (individual)
+    for i in range(int(population_size/2)):
+        # Loop through each task (chromosome)
+        for j in range(len(population[i])):
+            # zero day for summary job
+            if constraints[j].days < 0 :
+                continue
+            # check constraint before mutate
+            if population[i, j] > constraints[j].days:
+                shiftday = rn.randint(0, constraints[j].days)
+                population[i, j] = shiftday
+            # mutation prob
+            if rn.uniform(0, 1) <= mutation_probability:
+                # random number of shift day
+                shiftday = rn.randint(0, constraints[j].days)
+                population[i, j] = shiftday
+
+    # Return mutation population
+    return population
+
+
+def score_population(tasks, population):
+    """
+    Loop through all objectives and request score/fitness of population.
+    """
+    scores = np.zeros((population.shape[0], number_of_objectives))
+    # for i in range(number_of_objectives):
+    #     scores[:, i] = calculate_fitness(tasks, population)
+    scores[:, i] = calculate_fitness(tasks, population)
+
+    return scores
+
+
+def calculate_fitness(tasks, population):
+    """
+    Calculate fitness scores in each solution.
+    """
+    # Create an array of True/False compared to reference
+    identical_to_reference = population == reference
+    # Sum number of genes that are identical to the reference
+    fitness_scores = identical_to_reference.sum(axis=1)
+
+    return fitness_scores
+
+
+def PDM_calculation(tasks, population=None):
     for _ in range(4):
         # Forward calculate (Early_Start, Early_Finish)
         for i in range(len(tasks)):
@@ -203,6 +321,7 @@ def create_constraints(tasks):
     # tasks = tasks.reset_index()
     # print(tasks)
     #TF Constraint
+    # print(tasks[['Early_Start', 'Early_Finish', 'Late_Start', 'Late_Finish']])
     tasks['Total_Float'] = tasks['Late_Finish'] - tasks['Early_Finish'] - pd.to_timedelta(tasks['Duration'])
     # for i in range(len(tasks)):
     #     print(i, '\t', tasks.at[i, 'Early_Finish'], '\t', tasks.at[i, 'Late_Finish'], '\t', tasks.at[i, 'Duration'], '\t', tasks.at[i, 'Total_Float'])
@@ -240,8 +359,8 @@ def FS_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
 def FF_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
                     Si=0, Di=None, lag=None, exc=0, forward=None):
     if forward :
+        EFi = EFh + pd.to_timedelta(Si, unit='d') + pd.to_timedelta(lag)
         ESi = EFi - pd.to_timedelta(Di) + pd.to_timedelta(1 - exc, unit='d')
-        EFi = EFh + pd.to_timedelta(Si, unit='d') + pd.to_timedelta(lag) 
         return ESi, EFi
     else :
         LFi = LFj - pd.to_timedelta(lag)
@@ -252,12 +371,12 @@ def FF_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
 def SF_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
                     Si=0, Di=None, lag=None, exc=0, forward=None):
     if forward :
-        ESi = EFi - pd.to_timedelta(Di) + pd.to_timedelta(1 - exc, unit='d')
         EFi = ESh + pd.to_timedelta(Si, unit='d') + pd.to_timedelta(lag) + pd.to_timedelta(-1 - exc, unit='d')
+        ESi = EFi - pd.to_timedelta(Di) + pd.to_timedelta(1 - exc, unit='d')
         return ESi, EFi
     else :
-        LFi = LSi + pd.to_timedelta(Di) + pd.to_timedelta(-1 + exc, unit='d')
         LSi = LFj - pd.to_timedelta(lag) + pd.to_timedelta(1 + exc, unit='d')
+        LFi = LSi + pd.to_timedelta(Di) + pd.to_timedelta(-1 + exc, unit='d')
         return LSi, LFi
 
 

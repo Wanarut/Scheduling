@@ -33,3 +33,6 @@ print(Project_Start)
 import numpy as np
 s = np.random.randint(10, size=100)
 print(s)
+
+scores = np.zeros((4, 3))
+print(scores)
