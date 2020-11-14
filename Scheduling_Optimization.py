@@ -156,17 +156,24 @@ def calculate_cost_fitness(tasks, costs, individual):
     """
     Calculate fitness scores in each solution.
     """
+    T = tasks.at[len(tasks)-1, 'Early_Finish']
+    Ta = Finish_Date
+
     MC = (costs['ค่าวัสดุต่อวัน\n(บาท/วัน)'][:-10]) * (pd.to_timedelta(tasks['Duration']).dt.days)
     LC = (costs['ค่าแรงงานต่อวัน\n(บาท/วัน)'][:-10]) * (pd.to_timedelta(tasks['Duration']).dt.days)
     DC = sum(MC) + sum(LC)
     
     Daily_indirect_cost = costs.at[255, 'ค่าวัสดุรวม\n(บาท)']
-    IC = Daily_indirect_cost
+    IC = Daily_indirect_cost * (T-Start_Date).days
     
     Daily_penalty_cost = costs.at[259, 'ค่าวัสดุรวม\n(บาท)']
-    PC = Daily_penalty_cost
+    if (T-Ta).days > 0:
+        PC = Daily_penalty_cost * (T-Ta).days
+    else:
+        PC = 0
     
     Total_cost = DC + IC + PC
+    print(Total_cost)
 
     return Total_cost
 
