@@ -7,7 +7,7 @@ starting_population_size = 10
 maximum_generation = 20
 minimum_population_size = 10
 maximum_population_size = 10
-number_of_objectives = 3
+number_of_objectives = 2
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -15,17 +15,23 @@ Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M 
 
 def main():
     tasks = pd.read_excel('Optimizing-CMU.xlsm', sheet_name='Task_Table')
-
-    tasks = PDM_calculation(tasks=tasks)
-    print(tasks)
-    # Create starting population
+    costs = pd.read_excel('สรุป Cost BOQ ตาม Activity ID RV.1.xlsx', sheet_name='BOQ Activity')
+    
     chromosome_length = len(tasks)
-    mutation_probability = 1.0/chromosome_length
+    #all shift day equal zero
+    individual = np.zeros(chromosome_length, int)
+    tasks = PDM_calculation(tasks, individual)
+    # print(tasks)
+    calculate_cost_fitness(tasks, costs, individual)
+    return 0
+
+    # Create starting population
     population = create_population(starting_population_size, chromosome_length, tasks['Total_Float'])
     print(population)
 
+    # return 0
+    mutation_probability = 1.0/chromosome_length
     # Loop through the generations of genetic algorithm
-
     for generation in range(maximum_generation):
         if generation % 10 == 0:
             print('Generation (out of %i): %i ' % (maximum_generation, generation))
@@ -34,14 +40,11 @@ def main():
         population = breed_population(population)
         population = randomly_mutate_population(population, mutation_probability, tasks['Total_Float'])
 
-        tasks = PDM_calculation(tasks=tasks, population=population)
-
         # Score population
-        scores = score_population(tasks, population)
+        scores = score_population(tasks, costs, population)
 
-        # # Build pareto front
-        # population = build_pareto_population(
-        #     population, scores, minimum_population_size, maximum_population_size)
+        # Build pareto front
+        population = build_pareto_population(population, scores, minimum_population_size, maximum_population_size)
 
 
 def create_population(individuals_size, chromosome_length, constraints):
@@ -49,7 +52,7 @@ def create_population(individuals_size, chromosome_length, constraints):
     Create random population with given number of individuals and chroosome length.
     """
     # Set up an initial array of all zeros
-    population = np.zeros((individuals_size, chromosome_length))
+    population = np.zeros((individuals_size, chromosome_length), int)
     # Loop through each row (individual)
     for i in range(individuals_size):
         # Loop through each task (chromosome)
@@ -63,7 +66,7 @@ def create_population(individuals_size, chromosome_length, constraints):
 
     return population
 
-
+# Crossover
 def breed_population(population):
     """
     Create child population by repetedly calling breeding function (two parents
@@ -109,7 +112,7 @@ def breed_by_crossover(parent_1, parent_2):
     # Return children
     return child_1, child_2
 
-
+# Mutation
 def randomly_mutate_population(population, mutation_probability, constraints):
     """
     Randomly mutate population with a given individual gene mutation probability.
@@ -126,7 +129,7 @@ def randomly_mutate_population(population, mutation_probability, constraints):
             if population[i, j] > constraints[j].days:
                 shiftday = rn.randint(0, constraints[j].days)
                 population[i, j] = shiftday
-            # mutation prob
+            # chromosome mutation
             if rn.uniform(0, 1) <= mutation_probability:
                 # random number of shift day
                 shiftday = rn.randint(0, constraints[j].days)
@@ -135,32 +138,207 @@ def randomly_mutate_population(population, mutation_probability, constraints):
     # Return mutation population
     return population
 
-
-def score_population(tasks, population):
+# Fitness score
+def score_population(tasks, costs, population):
     """
     Loop through all objectives and request score/fitness of population.
     """
-    scores = np.zeros((population.shape[0], number_of_objectives))
-    # for i in range(number_of_objectives):
-    #     scores[:, i] = calculate_fitness(tasks, population)
-    scores[:, i] = calculate_fitness(tasks, population)
+    population_size = population.shape[0]
+    scores = np.zeros((population_size, number_of_objectives), int)
+
+    for i in range(population_size):
+        scores[i, 0] = calculate_cost_fitness(tasks, costs, population[i])
 
     return scores
 
 
-def calculate_fitness(tasks, population):
+def calculate_cost_fitness(tasks, costs, individual):
     """
     Calculate fitness scores in each solution.
     """
-    # Create an array of True/False compared to reference
-    identical_to_reference = population == reference
-    # Sum number of genes that are identical to the reference
-    fitness_scores = identical_to_reference.sum(axis=1)
+    MC = (costs['ค่าวัสดุต่อวัน\n(บาท/วัน)'][:-10]) * (pd.to_timedelta(tasks['Duration']).dt.days)
+    LC = (costs['ค่าแรงงานต่อวัน\n(บาท/วัน)'][:-10]) * (pd.to_timedelta(tasks['Duration']).dt.days)
+    DC = sum(MC) + sum(LC)
+    
+    Daily_indirect_cost = costs.at[255, 'ค่าวัสดุรวม\n(บาท)']
+    IC = Daily_indirect_cost
+    
+    Daily_penalty_cost = costs.at[259, 'ค่าวัสดุรวม\n(บาท)']
+    PC = Daily_penalty_cost
+    
+    Total_cost = DC + IC + PC
 
-    return fitness_scores
+    return Total_cost
+
+# Pareto front
+def build_pareto_population(
+        population, scores, minimum_population_size, maximum_population_size):
+    """
+    As necessary repeats Pareto front selection to build a population within
+    defined size limits. Will reduce a Pareto front by applying crowding 
+    selection as necessary.    
+    """
+    unselected_population_ids = np.arange(population.shape[0])
+    all_population_ids = np.arange(population.shape[0])
+    pareto_front = []
+    while len(pareto_front) < minimum_population_size:
+        temp_pareto_front = identify_pareto(
+            scores[unselected_population_ids, :], unselected_population_ids)
+
+        # Check size of total parteo front.
+        # If larger than maximum size reduce new pareto front by crowding
+        combined_pareto_size = len(pareto_front) + len(temp_pareto_front)
+        if combined_pareto_size > maximum_population_size:
+            number_to_select = combined_pareto_size - maximum_population_size
+            selected_individuals = (reduce_by_crowding(
+                scores[temp_pareto_front], number_to_select))
+            temp_pareto_front = temp_pareto_front[selected_individuals]
+
+        # Add latest pareto front to full Pareto front
+        pareto_front = np.hstack((pareto_front, temp_pareto_front))
+
+        # Update unselected population ID by using sets to find IDs in all
+        # ids that are not in the selected front
+        unselected_set = set(all_population_ids) - set(pareto_front)
+        unselected_population_ids = np.array(list(unselected_set))
+
+    population = population[pareto_front.astype(int)]
+    return population
 
 
-def PDM_calculation(tasks, population=None):
+def identify_pareto(scores, population_ids):
+    """
+    Identifies a single Pareto front, and returns the population IDs of
+    the selected solutions.
+    """
+    population_size = scores.shape[0]
+    # Create a starting list of items on the Pareto front
+    # All items start off as being labelled as on the Parteo front
+    pareto_front = np.ones(population_size, dtype=bool)
+    # Loop through each item. This will then be compared with all other items
+    for i in range(population_size):
+        # Loop through all other items
+        for j in range(population_size):
+            # Check if our 'i' pint is dominated by out 'j' point
+            if all(scores[j] >= scores[i]) and any(scores[j] > scores[i]):
+                # j dominates i. Label 'i' point as not on Pareto front
+                pareto_front[i] = 0
+                # Stop further comparisons with 'i' (no more comparisons needed)
+                break
+    # Return ids of scenarios on pareto front
+    return population_ids[pareto_front]
+
+
+def reduce_by_crowding(scores, number_to_select):
+    """
+    This function selects a number of solutions based on tournament of
+    crowding distances. Two members of the population are picked at
+    random. The one with the higher croding dostance is always picked
+    """
+    population_ids = np.arange(scores.shape[0])
+
+    crowding_distances = calculate_crowding(scores)
+
+    picked_population_ids = np.zeros((number_to_select))
+
+    picked_scores = np.zeros((number_to_select, len(scores[0, :])))
+
+    for i in range(number_to_select):
+
+        population_size = population_ids.shape[0]
+
+        fighter1ID = rn.randint(0, population_size - 1)
+
+        fighter2ID = rn.randint(0, population_size - 1)
+
+        # If fighter # 1 is better
+        if crowding_distances[fighter1ID] >= crowding_distances[
+                fighter2ID]:
+
+            # add solution to picked solutions array
+            picked_population_ids[i] = population_ids[
+                fighter1ID]
+
+            # Add score to picked scores array
+            picked_scores[i, :] = scores[fighter1ID, :]
+
+            # remove selected solution from available solutions
+            population_ids = np.delete(population_ids, (fighter1ID),
+                                       axis=0)
+
+            scores = np.delete(scores, (fighter1ID), axis=0)
+
+            crowding_distances = np.delete(crowding_distances, (fighter1ID),
+                                           axis=0)
+        else:
+            picked_population_ids[i] = population_ids[fighter2ID]
+
+            picked_scores[i, :] = scores[fighter2ID, :]
+
+            population_ids = np.delete(population_ids, (fighter2ID), axis=0)
+
+            scores = np.delete(scores, (fighter2ID), axis=0)
+
+            crowding_distances = np.delete(
+                crowding_distances, (fighter2ID), axis=0)
+
+    # Convert to integer
+    picked_population_ids = np.asarray(picked_population_ids, dtype=int)
+
+    return (picked_population_ids)
+
+
+def calculate_crowding(scores):
+    """
+    Crowding is based on a vector for each individual
+    All scores are normalised between low and high. For any one score, all
+    solutions are sorted in order low to high. Crowding for chromsome x
+    for that score is the difference between the next highest and next
+    lowest score. Total crowding value sums all crowding for all scores
+    """
+
+    population_size = len(scores[:, 0])
+    number_of_scores = len(scores[0, :])
+
+    # create crowding matrix of population (row) and score (column)
+    crowding_matrix = np.zeros((population_size, number_of_scores))
+
+    # normalise scores (ptp is max-min)
+    normed_scores = (scores - scores.min(0)) / scores.ptp(0)
+
+    # calculate crowding distance for each score in turn
+    for col in range(number_of_scores):
+        crowding = np.zeros(population_size)
+
+        # end points have maximum crowding
+        crowding[0] = 1
+        crowding[population_size - 1] = 1
+
+        # Sort each score (to calculate crowding between adjacent scores)
+        sorted_scores = np.sort(normed_scores[:, col])
+
+        sorted_scores_index = np.argsort(
+            normed_scores[:, col])
+
+        # Calculate crowding distance for each individual
+        crowding[1:population_size - 1] = \
+            (sorted_scores[2:population_size] -
+             sorted_scores[0:population_size - 2])
+
+        # resort to orginal order (two steps)
+        re_sort_order = np.argsort(sorted_scores_index)
+        sorted_crowding = crowding[re_sort_order]
+
+        # Record crowding distances
+        crowding_matrix[:, col] = sorted_crowding
+
+    # Sum crowding distances of each score
+    crowding_distances = np.sum(crowding_matrix, axis=1)
+
+    return crowding_distances
+
+# PDM network
+def PDM_calculation(tasks, individual):
     for _ in range(4):
         # Forward calculate (Early_Start, Early_Finish)
         for i in range(len(tasks)):
@@ -168,7 +346,7 @@ def PDM_calculation(tasks, population=None):
 
             # No relationship
             if pd.isnull(predecessors):
-                tasks.at[i, 'Early_Start'], tasks.at[i, 'Early_Finish'] = NO_calculation(Di=tasks.at[i, 'Duration'], forward=True)
+                tasks.at[i, 'Early_Start'], tasks.at[i, 'Early_Finish'] = NO_calculation(Di=tasks.at[i, 'Duration'], Si=individual[i], forward=True)
 
                 # print('i', i + 1, '\thes', '-1', '\t', tasks.at[i, 'Early_Start'], '\thef', '-1', '\t', tasks.at[i, 'Early_Finish'])
             else:
@@ -192,7 +370,7 @@ def PDM_calculation(tasks, population=None):
                         h_set = list(map(int, h_set))
                         for h in h_set:
                             h = h - 1
-                            early_set.append(FS_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=tasks.at[i, 'Duration'], lag=lag_time, forward=True))
+                            early_set.append(FS_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=tasks.at[i, 'Duration'], Si=individual[i], lag=lag_time, forward=True))
 
                     # FF relationship
                     elif FF_loc != -1:
@@ -200,7 +378,7 @@ def PDM_calculation(tasks, population=None):
                         h_set = list(map(int, h_set))
                         for h in h_set:
                             h = h - 1
-                            early_set.append(FF_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=tasks.at[i, 'Duration'], lag=lag_time, forward=True))
+                            early_set.append(FF_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=tasks.at[i, 'Duration'], Si=individual[i], lag=lag_time, forward=True))
 
                     # SF relationship
                     elif SF_loc != -1:
@@ -208,7 +386,7 @@ def PDM_calculation(tasks, population=None):
                         h_set = list(map(int, h_set))
                         for h in h_set:
                             h = h - 1
-                            early_set.append(SF_calculation(ESh=tasks.at[h, 'Early_Start'], Di=tasks.at[i, 'Duration'], lag=lag_time, forward=True))
+                            early_set.append(SF_calculation(ESh=tasks.at[h, 'Early_Start'], Di=tasks.at[i, 'Duration'], Si=individual[i], lag=lag_time, forward=True))
 
                     # SS relationship
                     elif SS_loc != -1:
@@ -216,7 +394,7 @@ def PDM_calculation(tasks, population=None):
                         h_set = list(map(int, h_set))
                         for h in h_set:
                             h = h - 1
-                            early_set.append(SS_calculation(ESh=tasks.at[h, 'Early_Start'], Di=tasks.at[i, 'Duration'], lag=lag_time, forward=True))
+                            early_set.append(SS_calculation(ESh=tasks.at[h, 'Early_Start'], Di=tasks.at[i, 'Duration'], Si=individual[i], lag=lag_time, forward=True))
                     
                     # FS relationship
                     else:
@@ -224,7 +402,7 @@ def PDM_calculation(tasks, population=None):
                         h_set = list(map(int, h_set))
                         for h in h_set:
                             h = h - 1
-                            early_set.append(FS_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=tasks.at[i, 'Duration'], lag=lag_time, forward=True))
+                            early_set.append(FS_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=tasks.at[i, 'Duration'], Si=individual[i], lag=lag_time, forward=True))
                     
                     early_set = np.array(early_set).T.tolist()
                     max_es = max(early_set[0])
@@ -235,9 +413,6 @@ def PDM_calculation(tasks, population=None):
                     tasks.at[i, 'Early_Finish'] = max_ef
 
                     # print('i', i + 1, '\thes', h_es, '\t', tasks.at[i, 'Early_Start'], '\thef', h_ef, '\t', tasks.at[i, 'Early_Finish'])
-    
-    # return 0
-    # for _ in range(2):
         
         # Backward calculate (Late_Start, Late_Finish)
         for i in range(len(tasks)-1, -1, -1):
@@ -315,11 +490,13 @@ def PDM_calculation(tasks, population=None):
         
         # print(tasks[['Early_Start', 'Early_Finish', 'Late_Start', 'Late_Finish']])
         # print('###########################################################################################')
+    
     # Filter
     # tasks = tasks[tasks['Summary']=='No']
     # print(tasks)
     # tasks = tasks.reset_index()
     # print(tasks)
+
     #TF Constraint
     # print(tasks[['Early_Start', 'Early_Finish', 'Late_Start', 'Late_Finish']])
     tasks['Total_Float'] = tasks['Late_Finish'] - tasks['Early_Finish'] - pd.to_timedelta(tasks['Duration'])
