@@ -1,13 +1,14 @@
 import pandas as pd
 import numpy as np
 import random as rn
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 # Set general parameters
-starting_population_size = 10
-maximum_generation = 20
-minimum_population_size = 10
-maximum_population_size = 10
-number_of_objectives = 2
+starting_population_size = 50
+maximum_generation = 5
+minimum_population_size = 50
+maximum_population_size = 50
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -19,32 +20,69 @@ def main():
     
     chromosome_length = len(tasks)
     #all shift day equal zero
-    individual = np.zeros(chromosome_length, int)
-    tasks = PDM_calculation(tasks, individual)
-    # print(tasks)
-    calculate_cost_fitness(tasks, costs, individual)
-    return 0
+    individual_0 = np.zeros(chromosome_length, int)
+    tasks_0 = PDM_calculation(tasks, individual_0)
+    
+    cost_0 = calculate_cost_fitness(tasks_0, costs)
+    time_0 = calculate_time_fitness(tasks_0)
+    mx_0 = calculate_mx_fitness(tasks_0, costs)
+    # No Optimization
+    print('No Optimization')
+    print('Total Cost', cost_0, 'Baht')
+    print('Project Duration', time_0, 'Days')
+    print('Mx', mx_0, 'man^2')
+    
+    print('Start Optimization')
+    TF_constraints = tasks_0['Late_Finish'] - tasks_0['Early_Finish'] - pd.to_timedelta(tasks_0['Duration'])
+    # return 0
 
     # Create starting population
-    population = create_population(starting_population_size, chromosome_length, tasks['Total_Float'])
-    print(population)
+    population = create_population(starting_population_size, chromosome_length, TF_constraints)
+    # print(population)
 
     # return 0
     mutation_probability = 1.0/chromosome_length
     # Loop through the generations of genetic algorithm
     for generation in range(maximum_generation):
-        if generation % 10 == 0:
+        if generation % 5 == 0:
             print('Generation (out of %i): %i ' % (maximum_generation, generation))
 
         # Breed
         population = breed_population(population)
-        population = randomly_mutate_population(population, mutation_probability, tasks['Total_Float'])
+        population = randomly_mutate_population(population, mutation_probability, TF_constraints)
 
         # Score population
         scores = score_population(tasks, costs, population)
 
         # Build pareto front
         population = build_pareto_population(population, scores, minimum_population_size, maximum_population_size)
+    
+    # Get final pareto front
+    scores = score_population(tasks, costs, population)
+    population_ids = np.arange(population.shape[0]).astype(int)
+    pareto_front = identify_pareto(scores, population_ids)
+    population = population[pareto_front, :]
+    scores = -scores[pareto_front]
+    
+    for i in range(len(population)):
+        print(population[i], scores[i])
+        print()
+
+    # Plot Pareto front
+    x = scores[:, 0]
+    y = scores[:, 1]
+    z = scores[:, 2]
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(x, y, z, color='b', marker='o')
+
+    ax.set_xlabel('cost')
+    ax.set_ylabel('time')
+    ax.set_zlabel('Mx')
+    # plt.savefig('pareto.png')
+
+    plt.show()
 
 
 def create_population(individuals_size, chromosome_length, constraints):
@@ -86,7 +124,7 @@ def breed_population(population):
 
     # Add the child population to the parent population
     # In this method we allow parents and children to compete to be kept
-    population = np.vstack((np.array(new_population), population))
+    population = np.vstack((population, np.array(new_population)))
     population = np.unique(population, axis=0)
 
     return population
@@ -127,6 +165,7 @@ def randomly_mutate_population(population, mutation_probability, constraints):
                 continue
             # check constraint before mutate
             if population[i, j] > constraints[j].days:
+                print('Out of bound')
                 shiftday = rn.randint(0, constraints[j].days)
                 population[i, j] = shiftday
             # chromosome mutation
@@ -144,20 +183,25 @@ def score_population(tasks, costs, population):
     Loop through all objectives and request score/fitness of population.
     """
     population_size = population.shape[0]
-    scores = np.zeros((population_size, number_of_objectives), int)
+    scores = np.zeros((population_size, 3), int)
+    show_interval = population_size/50
 
     for i in range(population_size):
-        scores[i, 0] = calculate_cost_fitness(tasks, costs, population[i])
+        print('.', end='')
+        shift_tasks = PDM_calculation(tasks, population[i])
+        scores[i, 0] = -calculate_cost_fitness(shift_tasks, costs)
+        scores[i, 1] = -calculate_time_fitness(shift_tasks)
+        scores[i, 2] = -calculate_mx_fitness(shift_tasks, costs)
+    print('>')
 
     return scores
 
 
-def calculate_cost_fitness(tasks, costs, individual):
+def calculate_cost_fitness(tasks, costs):
     """
     Calculate fitness scores in each solution.
     """
-    T = tasks.at[len(tasks)-1, 'Early_Finish']
-    Ta = Finish_Date
+    T = max(tasks['Early_Finish'])
 
     MC = (costs['ค่าวัสดุต่อวัน\n(บาท/วัน)'][:-10]) * (pd.to_timedelta(tasks['Duration']).dt.days)
     LC = (costs['ค่าแรงงานต่อวัน\n(บาท/วัน)'][:-10]) * (pd.to_timedelta(tasks['Duration']).dt.days)
@@ -167,15 +211,54 @@ def calculate_cost_fitness(tasks, costs, individual):
     IC = Daily_indirect_cost * (T-Start_Date).days
     
     Daily_penalty_cost = costs.at[259, 'ค่าวัสดุรวม\n(บาท)']
-    if (T-Ta).days > 0:
-        PC = Daily_penalty_cost * (T-Ta).days
+    if (T-Finish_Date).days > 0:
+        PC = Daily_penalty_cost * (T-Finish_Date).days
     else:
         PC = 0
     
-    Total_cost = DC + IC + PC
-    print(Total_cost)
+    Total_cost = int(DC + IC + PC)
 
     return Total_cost
+
+
+def calculate_time_fitness(tasks):
+    """
+    Calculate fitness scores in each solution.
+    """
+    T = max(tasks['Early_Finish'])
+    Project_duration = (T-Start_Date).days + 1
+
+    return Project_duration
+
+
+def calculate_mx_fitness(tasks, costs):
+    """
+    Calculate fitness scores in each solution.
+    """
+    T = max(tasks['Early_Finish'])
+    Project_duration = (T-Start_Date).days + 1
+
+    Mx = []
+    for i in range(Project_duration):
+        cur_day = Start_Date + pd.to_timedelta(i, unit='d')
+        cur_mx = 0
+        for j in range(len(tasks)):
+            resource_demand = costs.at[j, 'Resource\n(คน)']
+            if pd.isnull(resource_demand):
+                continue
+            Early_Start = tasks.at[j, 'Early_Start']
+            Early_Finish = tasks.at[j, 'Early_Finish']
+
+            if cur_day >= Early_Start and cur_day <= Early_Finish:
+                cur_mx = int(cur_mx + resource_demand)
+        # print(i+1, cur_day, '=', cur_mx)
+        Mx.append(cur_mx**2)
+    
+    # plt.plot(Mx)
+    # plt.ylabel('Mx^2/day')
+    # plt.show()
+    return sum(Mx)
+
 
 # Pareto front
 def build_pareto_population(
@@ -311,7 +394,7 @@ def calculate_crowding(scores):
     crowding_matrix = np.zeros((population_size, number_of_scores))
 
     # normalise scores (ptp is max-min)
-    normed_scores = (scores - scores.min(0)) / scores.ptp(0)
+    normed_scores = (scores - scores.min(0)) / 1+scores.ptp(0)
 
     # calculate crowding distance for each score in turn
     for col in range(number_of_scores):
@@ -506,7 +589,7 @@ def PDM_calculation(tasks, individual):
 
     #TF Constraint
     # print(tasks[['Early_Start', 'Early_Finish', 'Late_Start', 'Late_Finish']])
-    tasks['Total_Float'] = tasks['Late_Finish'] - tasks['Early_Finish'] - pd.to_timedelta(tasks['Duration'])
+
     # for i in range(len(tasks)):
     #     print(i, '\t', tasks.at[i, 'Early_Finish'], '\t', tasks.at[i, 'Late_Finish'], '\t', tasks.at[i, 'Duration'], '\t', tasks.at[i, 'Total_Float'])
     # print(tasks[['Early_Start', 'Early_Finish', 'Late_Start', 'Late_Finish', 'Total_Float']])

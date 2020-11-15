@@ -43,7 +43,7 @@ def score_population(population, references):
     """
     scores = np.zeros((population.shape[0], references.shape[0]))
     for i, reference in enumerate(references):
-        scores[:, i] = calculate_fitness(reference, population)
+        scores[:, i] = -calculate_fitness(reference, population)
 
     return scores
 
@@ -299,15 +299,18 @@ def breed_population(population):
 
 
 # Set general parameters
-chromosome_length = 100
-starting_population_size = 1000
-maximum_generation = 20
-minimum_population_size = 500
-maximum_population_size = 800
+chromosome_length = 10
+starting_population_size = 100
+maximum_generation = 50
+minimum_population_size = 100
+maximum_population_size = 100
 
+rn.seed(30)
 # Create two reference solutions
 # (this is used just to illustrate GAs)
-references = create_reference_solutions(chromosome_length, 3)
+# references = create_reference_solutions(chromosome_length, 3)
+references = [[1,0,1,1,1,0,1,1,1,0], [0,0,1,1,0,0,1,1,1,1], [1,1,0,0,1,1,0,0,1,0]]
+references = np.array(references)
 
 # Create starting population
 population = create_population(
@@ -335,7 +338,7 @@ scores = score_population(population, references)
 population_ids = np.arange(population.shape[0]).astype(int)
 pareto_front = identify_pareto(scores, population_ids)
 population = population[pareto_front, :]
-scores = scores[pareto_front]
+scores = -scores[pareto_front]
 
 # Plot Pareto front (for two scores only)
 x = scores[:, 0]/chromosome_length*100

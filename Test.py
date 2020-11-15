@@ -35,4 +35,4 @@ s = np.random.randint(10, size=100)
 print(s)
 
 scores = np.zeros(4, int)
-print(scores)
+print(10**2)
