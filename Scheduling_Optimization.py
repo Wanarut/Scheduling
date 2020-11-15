@@ -187,12 +187,12 @@ def score_population(tasks, costs, population):
     show_interval = population_size/50
 
     for i in range(population_size):
-        print('.', end='')
+        # print('.', end='')
         shift_tasks = PDM_calculation(tasks, population[i])
         scores[i, 0] = -calculate_cost_fitness(shift_tasks, costs)
         scores[i, 1] = -calculate_time_fitness(shift_tasks)
         scores[i, 2] = -calculate_mx_fitness(shift_tasks, costs)
-    print('>')
+    # print('>')
 
     return scores
 
