@@ -6,10 +6,10 @@ from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 
 # Set general parameters
-starting_population_size = 50
-maximum_generation = 5
-minimum_population_size = 50
-maximum_population_size = 50
+starting_population_size = 500
+maximum_generation = 10
+minimum_population_size = 500
+maximum_population_size = 500
 print_interval = 1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -49,7 +49,7 @@ def main():
     for generation in range(maximum_generation):
         if generation % print_interval == 0:
             start = timer()
-            print('Generation (out of %i): %i' % (maximum_generation, generation), end='', flush=True)
+            print('Generation (out of %i): %i' % (maximum_generation, generation + 1), end='', flush=True)
 
         # Breed
         population = breed_population(population)
@@ -73,7 +73,8 @@ def main():
     # for i in range(len(population)):
     #     print(population[i], scores[i])
     #     print()
-    print(population, scores)
+    print(population)
+    print(scores)
 
     # Plot Pareto front
     x = scores[:, 0]
@@ -169,13 +170,18 @@ def randomly_mutate_population(population, mutation_probability, constraints):
         # Loop through each task (chromosome)
         for j in range(chromosome_length):
             # zero day for summary job
+            shiftday = population[i, j]
             constraint = constraints[j].days
             if constraint < 0 :
                 continue
+            if shiftday < 0 or shiftday > constraint:
+                shiftday = int(rn.uniform(0, constraint))
             # chromosome mutation
             if rn.uniform(0, 1) <= mutation_probability:
                 # random number of shift day
-                population[i, j] = int(rn.uniform(0, constraint))
+                # population[i, j] = int(rn.uniform(0, constraint))
+                shiftday = shiftday + int(rn.uniform(-5, 5))
+            population[i, j] = shiftday
 
     # Return mutation population
     return population
@@ -187,14 +193,16 @@ def score_population(tasks, costs, population):
     """
     population_size = population.shape[0]
     scores = np.zeros((population_size, 3), int)
-    # show_interval = population_size/50
+    show_interval = population_size/50
 
     for i in range(population_size):
-        print('.', end='', flush=True)
+        if i % show_interval == 0 :
+            print('.', end='', flush=True)
         shift_tasks = PDM_calculation(tasks, population[i])
         scores[i, 0] = -calculate_cost_fitness(shift_tasks, costs)
         scores[i, 1] = -calculate_time_fitness(shift_tasks)
-        scores[i, 2] = -calculate_mx_fitness(shift_tasks, costs)
+        # scores[i, 2] = -calculate_mx_fitness(shift_tasks, costs)
+        scores[i, 2] = 0
 
     return scores
 
@@ -217,6 +225,8 @@ def calculate_cost_fitness(tasks, costs):
         PC = Daily_penalty_cost * (T-Finish_Date).days
     else:
         PC = 0
+    if PC > 0.1*(DC + IC):
+        PC = 9999999999
     
     Total_cost = int(DC + IC + PC)
 
@@ -229,6 +239,8 @@ def calculate_time_fitness(tasks):
     """
     T = max(tasks['Early_Finish'])
     Project_duration = (T-Start_Date).days + 1
+    if Project_duration > 1000:
+        Project_duration = 9999
 
     return Project_duration
 
