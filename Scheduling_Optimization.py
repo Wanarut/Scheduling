@@ -6,11 +6,11 @@ from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 
 # Set general parameters
-starting_population_size = 50
-maximum_generation = 10
-minimum_population_size = 50
-maximum_population_size = 50
-print_interval = 1
+starting_population_size = 500
+maximum_generation = 100
+minimum_population_size = 300
+maximum_population_size = 500
+print_interval = 5
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -168,6 +168,7 @@ def randomly_mutate_population(population, mutation_probability, constraints):
     """
     Randomly mutate population with a given individual gene mutation probability.
     """
+    # x=random.randint(100, size=(5))
     population_size = population.shape[0]
     chromosome_length = population.shape[1]
     # Apply random mutation through each row (individual)
@@ -187,7 +188,7 @@ def randomly_mutate_population(population, mutation_probability, constraints):
                 # random number of shift day
                 # population[i, j] = int(rn.uniform(0, constraint))
                 # shiftday = shiftday + int(rn.uniform(-5, 5))
-                shiftday = shiftday + rn.randint(-1, 1)
+                shiftday = shiftday + rn.randint(0, 5)
             population[i, j] = shiftday
 
     # Return mutation population
