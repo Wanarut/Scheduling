@@ -6,10 +6,10 @@ from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 
 # Set general parameters
-starting_population_size = 500
-maximum_generation = 50
-minimum_population_size = 300
-maximum_population_size = 500
+starting_population_size = 100
+maximum_generation = 5
+minimum_population_size = 50
+maximum_population_size = 100
 print_interval = 2
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -119,7 +119,7 @@ def create_population(individuals_size, chromosome_length, constraints):
                 continue
             # random number of shift day
             # population[i, j] = int(rn.uniform(0, constraint))
-            population[i, j] = rn.randint(0, 1)
+            population[i, j] = rn.randint(0, 5)
 
     return population
 
@@ -179,23 +179,32 @@ def randomly_mutate_population(population, mutation_probability, constraints):
     chromosome_length = population.shape[1]
     # Apply random mutation through each row (individual)
     for i in range(int(population_size/2)):
-        # Loop through each task (chromosome)
-        for j in range(chromosome_length):
-            # zero day for summary job
-            shiftday = population[i, j]
-            constraint = constraints[j].days
-            if constraint < 0 :
+        j = int(rn.uniform(0, chromosome_length-1))
+        constraint = constraints[j].days
+        if constraint < 0 :
                 continue
-            if shiftday < 0 or shiftday > constraint:
-                # shiftday = int(rn.uniform(0, constraint))
-                shiftday = rn.randint(0, 1)
-            # chromosome mutation
-            if rn.uniform(0, 1) <= mutation_probability:
-                # random number of shift day
-                # population[i, j] = int(rn.uniform(0, constraint))
-                # shiftday = shiftday + int(rn.uniform(-5, 5))
-                shiftday = shiftday + rn.randint(0, 5)
-            population[i, j] = shiftday
+        shiftday = population[i, j]
+        shiftday = shiftday + int(rn.uniform(0, 5))
+        if shiftday < 0 or shiftday > constraint:
+            shiftday = rn.randint(0, 5)
+        population[i, j] = shiftday
+        # Loop through each task (chromosome)
+        # for j in range(chromosome_length):
+        #     # zero day for summary job
+        #     shiftday = population[i, j]
+        #     constraint = constraints[j].days
+        #     if constraint < 0 :
+        #         continue
+        #     if shiftday < 0 or shiftday > constraint:
+        #         # shiftday = int(rn.uniform(0, constraint))
+        #         shiftday = rn.randint(0, 1)
+        #     # chromosome mutation
+        #     if rn.uniform(0, 1) <= mutation_probability:
+        #         # random number of shift day
+        #         # population[i, j] = int(rn.uniform(0, constraint))
+        #         # shiftday = shiftday + int(rn.uniform(-5, 5))
+        #         shiftday = shiftday + rn.randint(0, 5)
+        #     population[i, j] = shiftday
 
     # Return mutation population
     return population
