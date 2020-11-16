@@ -6,10 +6,10 @@ from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 
 # Set general parameters
-starting_population_size = 500
-maximum_generation = 100
-minimum_population_size = 300
-maximum_population_size = 500
+starting_population_size = 50
+maximum_generation = 50
+minimum_population_size = 30
+maximum_population_size = 50
 print_interval = 5
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -24,20 +24,22 @@ def main():
     chromosome_length = len(tasks)
     #all shift day equal zero
     individual_0 = np.zeros(chromosome_length, int)
+    start = timer()
     for _ in range(4):
         tasks_0 = PDM_calculation(tasks, individual_0)
     
     cost_0 = calculate_cost_fitness(tasks_0, costs)
     time_0 = calculate_time_fitness(tasks_0)
-    start = timer()
     mx_0 = calculate_mx_fitness(tasks_0, costs)
-    print('> use' , timer()-start, 's')
+    # time per individual
+    tpi = timer()-start
 
     # No Optimization
     print('No Optimization')
     print('Total Cost', cost_0, 'Baht')
     print('Project Duration', time_0, 'Days')
     print('Mx', mx_0, 'man^2')
+    print('> use' , tpi, 's / individual -> Total time', starting_population_size*maximum_generation*tpi/3600, 'hours')
     # return 0
 
     print('Start Optimization')
@@ -51,8 +53,8 @@ def main():
     mutation_probability = 1.0/chromosome_length
     # Loop through the generations of genetic algorithm
     for generation in range(maximum_generation):
+        start = timer()
         if generation % print_interval == 0:
-            start = timer()
             print('Generation (out of %i): %i' % (maximum_generation, generation + 1), end='', flush=True)
 
         # Breed
@@ -64,8 +66,10 @@ def main():
 
         # Build pareto front
         population = build_pareto_population(population, scores, minimum_population_size, maximum_population_size)
+        # time per population
+        tpp = timer()-start
         if generation % print_interval == 0:
-            print('> use' , timer()-start, 's')
+            print('> use' , tpp, 's / population -> Total time left', (maximum_generation-generation)*tpp/3600, 'hours')
     
     # Get final pareto front
     scores = score_population(tasks, costs, population)
@@ -201,7 +205,7 @@ def score_population(tasks, costs, population):
     """
     population_size = population.shape[0]
     scores = np.zeros((population_size, 3), int)
-    show_interval = population_size/50
+    show_interval = int(population_size/50)
 
     for i in range(population_size):
         if i % show_interval == 0 :
