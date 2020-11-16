@@ -6,14 +6,15 @@ from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 
 # Set general parameters
-starting_population_size = 500
+starting_population_size = 50
 maximum_generation = 10
-minimum_population_size = 500
-maximum_population_size = 500
+minimum_population_size = 50
+maximum_population_size = 50
 print_interval = 1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
+max_project_duration = 780
 
 
 def main():
@@ -28,7 +29,10 @@ def main():
     
     cost_0 = calculate_cost_fitness(tasks_0, costs)
     time_0 = calculate_time_fitness(tasks_0)
+    start = timer()
     mx_0 = calculate_mx_fitness(tasks_0, costs)
+    print('> use' , timer()-start, 's')
+
     # No Optimization
     print('No Optimization')
     print('Total Cost', cost_0, 'Baht')
@@ -108,7 +112,8 @@ def create_population(individuals_size, chromosome_length, constraints):
             if constraint < 0 :
                 continue
             # random number of shift day
-            population[i, j] = int(rn.uniform(0, constraint))
+            # population[i, j] = int(rn.uniform(0, constraint))
+            population[i, j] = rn.randint(0, 1)
 
     return population
 
@@ -175,12 +180,14 @@ def randomly_mutate_population(population, mutation_probability, constraints):
             if constraint < 0 :
                 continue
             if shiftday < 0 or shiftday > constraint:
-                shiftday = int(rn.uniform(0, constraint))
+                # shiftday = int(rn.uniform(0, constraint))
+                shiftday = rn.randint(0, 1)
             # chromosome mutation
             if rn.uniform(0, 1) <= mutation_probability:
                 # random number of shift day
                 # population[i, j] = int(rn.uniform(0, constraint))
-                shiftday = shiftday + int(rn.uniform(-5, 5))
+                # shiftday = shiftday + int(rn.uniform(-5, 5))
+                shiftday = shiftday + rn.randint(-1, 1)
             population[i, j] = shiftday
 
     # Return mutation population
@@ -201,8 +208,7 @@ def score_population(tasks, costs, population):
         shift_tasks = PDM_calculation(tasks, population[i])
         scores[i, 0] = -calculate_cost_fitness(shift_tasks, costs)
         scores[i, 1] = -calculate_time_fitness(shift_tasks)
-        # scores[i, 2] = -calculate_mx_fitness(shift_tasks, costs)
-        scores[i, 2] = 0
+        scores[i, 2] = -calculate_mx_fitness(shift_tasks, costs)
 
     return scores
 
@@ -239,7 +245,7 @@ def calculate_time_fitness(tasks):
     """
     T = max(tasks['Early_Finish'])
     Project_duration = (T-Start_Date).days + 1
-    if Project_duration > 1000:
+    if Project_duration > max_project_duration:
         Project_duration = 9999
 
     return Project_duration
@@ -249,29 +255,39 @@ def calculate_mx_fitness(tasks, costs):
     """
     Calculate fitness scores in each solution.
     """
-    T = max(tasks['Early_Finish'])
+    Early_Start = tasks['Early_Start']
+    Early_Finish = tasks['Early_Finish']
+    T = max(Early_Finish)
     Project_duration = (T-Start_Date).days + 1
+    labour_resource = costs['Resource\n(คน)'][:-10]
+    tasks_length = len(tasks)
 
-    Mx = []
+    # Mx = []
+    Mx = 0
     for i in range(Project_duration):
         cur_day = Start_Date + pd.to_timedelta(i, unit='d')
-        cur_mx = 0
-        for j in range(len(tasks)):
-            resource_demand = costs.at[j, 'Resource\n(คน)']
-            if pd.isnull(resource_demand):
-                continue
-            Early_Start = tasks.at[j, 'Early_Start']
-            Early_Finish = tasks.at[j, 'Early_Finish']
+        cur_job = labour_resource[(cur_day >= Early_Start) & (cur_day <= Early_Finish)]
+        cur_job = cur_job[pd.notnull(cur_job)]
+        # print(i)
+        # print(sum(cur_job))
+        Mx = Mx + sum(cur_job)**2
 
-            if cur_day >= Early_Start and cur_day <= Early_Finish:
-                cur_mx = int(cur_mx + resource_demand)
+        # for j in range(tasks_length):
+        #     resource_demand = labour_resource[j]
+        #     if pd.isnull(resource_demand):
+        #         continue
+
+        #     if cur_day >= Early_Start[j] and cur_day <= Early_Finish[j]:
+        #         cur_mx = int(cur_mx + resource_demand)
         # print(i+1, cur_day, '=', cur_mx)
-        Mx.append(cur_mx**2)
+        # Mx.append(cur_mx**2)
+        # Mx = Mx + cur_mx**2
     
     # plt.plot(Mx)
     # plt.ylabel('Mx^2/day')
     # plt.show()
-    return sum(Mx)
+    # return sum(Mx)
+    return Mx
 
 # Pareto front
 def build_pareto_population(population, scores, minimum_population_size, maximum_population_size):
