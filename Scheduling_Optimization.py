@@ -6,10 +6,10 @@ from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 
 # Set general parameters
-starting_population_size = 100
+starting_population_size = 200
 maximum_generation = 5
-minimum_population_size = 50
-maximum_population_size = 100
+minimum_population_size = 100
+maximum_population_size = 200
 print_interval = 2
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -39,7 +39,7 @@ def main():
     print('Total Cost', cost_0, 'Baht')
     print('Project Duration', time_0, 'Days')
     print('Mx', mx_0, 'man^2')
-    print('> use' , tpi, 'sec/individual -> Total time', starting_population_size*maximum_generation*tpi/3600, 'hours')
+    print('> use' , tpi, 'sec/individual -> Total time', pd.to_timedelta(starting_population_size*maximum_generation*tpi, unit='s'))
     # return 0
 
     print('Start Optimization')
@@ -71,7 +71,7 @@ def main():
         # time per population
         tpp = timer()-start
         if generation % print_interval == 0:
-            print('> use' , tpp, 'sec/pop -> Total time left', (maximum_generation-generation)*tpp/3600, 'hours')
+            print('> use' , tpp, 'sec/pop -> Total time left', pd.to_timedelta((maximum_generation-generation)*tpp, unit='s'))
     
     # Get final pareto front
     scores = score_population(tasks, costs, population)
