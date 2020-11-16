@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 # Set general parameters
-starting_population_size = 50
-maximum_generation = 5
-minimum_population_size = 50
-maximum_population_size = 50
+starting_population_size = 500
+maximum_generation = 10
+minimum_population_size = 400
+maximum_population_size = 500
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -258,7 +258,6 @@ def calculate_mx_fitness(tasks, costs):
     # plt.ylabel('Mx^2/day')
     # plt.show()
     return sum(Mx)
-
 
 # Pareto front
 def build_pareto_population(
