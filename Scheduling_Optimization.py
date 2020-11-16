@@ -6,11 +6,11 @@ from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 
 # Set general parameters
-starting_population_size = 50
+starting_population_size = 500
 maximum_generation = 50
-minimum_population_size = 30
-maximum_population_size = 50
-print_interval = 5
+minimum_population_size = 300
+maximum_population_size = 500
+print_interval = 2
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -39,7 +39,7 @@ def main():
     print('Total Cost', cost_0, 'Baht')
     print('Project Duration', time_0, 'Days')
     print('Mx', mx_0, 'man^2')
-    print('> use' , tpi, 's / individual -> Total time', starting_population_size*maximum_generation*tpi/3600, 'hours')
+    print('> use' , tpi, 'sec/individual -> Total time', starting_population_size*maximum_generation*tpi/3600, 'hours')
     # return 0
 
     print('Start Optimization')
@@ -54,22 +54,24 @@ def main():
     # Loop through the generations of genetic algorithm
     for generation in range(maximum_generation):
         start = timer()
-        if generation % print_interval == 0:
-            print('Generation (out of %i): %i' % (maximum_generation, generation + 1), end='', flush=True)
 
         # Breed
         population = breed_population(population)
         population = randomly_mutate_population(population, mutation_probability, TF_constraints)
 
         # Score population
-        scores = score_population(tasks_0, costs, population)
+        if generation % print_interval == 0:
+            print('Generation (out of %i): gen %i' % (maximum_generation, generation + 1), end='', flush=True)
+            scores = score_population(tasks_0, costs, population, True)
+        else :
+            scores = score_population(tasks_0, costs, population)
 
         # Build pareto front
         population = build_pareto_population(population, scores, minimum_population_size, maximum_population_size)
         # time per population
         tpp = timer()-start
         if generation % print_interval == 0:
-            print('> use' , tpp, 's / population -> Total time left', (maximum_generation-generation)*tpp/3600, 'hours')
+            print('> use' , tpp, 'sec/pop -> Total time left', (maximum_generation-generation)*tpp/3600, 'hours')
     
     # Get final pareto front
     scores = score_population(tasks, costs, population)
@@ -199,22 +201,21 @@ def randomly_mutate_population(population, mutation_probability, constraints):
     return population
 
 # Fitness score
-def score_population(tasks, costs, population):
+def score_population(tasks, costs, population, display=False):
     """
     Loop through all objectives and request score/fitness of population.
     """
     population_size = population.shape[0]
     scores = np.zeros((population_size, 3), int)
-    show_interval = int(population_size/50)
+    show_interval = int(population_size/50) + 1
 
     for i in range(population_size):
-        if i % show_interval == 0 :
+        if display and i % show_interval == 0 :
             print('.', end='', flush=True)
         shift_tasks = PDM_calculation(tasks, population[i])
         scores[i, 0] = -calculate_cost_fitness(shift_tasks, costs)
         scores[i, 1] = -calculate_time_fitness(shift_tasks)
         scores[i, 2] = -calculate_mx_fitness(shift_tasks, costs)
-
     return scores
 
 
