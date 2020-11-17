@@ -6,11 +6,11 @@ from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 
 # Set general parameters
-starting_population_size = 200
-maximum_generation = 5
-minimum_population_size = 100
-maximum_population_size = 200
-print_interval = 2
+starting_population_size = 500
+maximum_generation = 100
+minimum_population_size = 300
+maximum_population_size = 500
+print_interval = 5
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -97,7 +97,7 @@ def main():
 
     ax.set_xlabel('cost')
     ax.set_ylabel('time')
-    ax.set_zlabel('Mx')
+    ax.set_zlabel('Mx^2')
     # plt.savefig('pareto.png')
 
     plt.show()
