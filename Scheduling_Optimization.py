@@ -7,10 +7,10 @@ from timeit import default_timer as timer
 
 # Set general parameters
 starting_population_size = 500
-maximum_generation = 100
+maximum_generation = 40
 minimum_population_size = 300
 maximum_population_size = 500
-print_interval = 5
+print_interval = 1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -80,9 +80,6 @@ def main():
     population = population[pareto_front, :]
     scores = -scores[pareto_front]
     
-    # for i in range(len(population)):
-    #     print(population[i], scores[i])
-    #     print()
     print(population)
     print(scores)
 
@@ -98,7 +95,7 @@ def main():
     ax.set_xlabel('cost')
     ax.set_ylabel('time')
     ax.set_zlabel('Mx^2')
-    # plt.savefig('pareto.png')
+    plt.savefig('pareto.png')
 
     plt.show()
 
@@ -234,21 +231,21 @@ def calculate_cost_fitness(tasks, costs):
     """
     T = max(tasks['Early_Finish'])
 
-    MC = (costs['ค่าวัสดุต่อวัน\n(บาท/วัน)'][:-10]) * (pd.to_timedelta(tasks['Duration']).dt.days)
-    LC = (costs['ค่าแรงงานต่อวัน\n(บาท/วัน)'][:-10]) * (pd.to_timedelta(tasks['Duration']).dt.days)
+    MC = (costs['ค่าวัสดุต่อวัน\n(บาท/วัน)'][:-13]) * (pd.to_timedelta(tasks['Duration']).dt.days)
+    LC = (costs['ค่าแรงงานต่อวัน\n(บาท/วัน)'][:-13]) * (pd.to_timedelta(tasks['Duration']).dt.days)
     DC = sum(MC) + sum(LC)
     
-    Daily_indirect_cost = costs.at[255, 'ค่าวัสดุรวม\n(บาท)']
+    Daily_indirect_cost = costs.at[256, 'ค่าวัสดุรวม\n(บาท)']
     IC = Daily_indirect_cost * (T-Start_Date).days
     
-    Daily_penalty_cost = costs.at[259, 'ค่าวัสดุรวม\n(บาท)']
+    Daily_penalty_cost = costs.at[258, 'ค่าวัสดุรวม\n(บาท)']
     if (T-Finish_Date).days > 0:
         PC = Daily_penalty_cost * (T-Finish_Date).days
     else:
         PC = 0
     if PC > 0.1*(DC + IC):
         PC = 9999999999
-    
+        
     Total_cost = int(DC + IC + PC)
 
     return Total_cost
@@ -274,34 +271,14 @@ def calculate_mx_fitness(tasks, costs):
     Early_Finish = tasks['Early_Finish']
     T = max(Early_Finish)
     Project_duration = (T-Start_Date).days + 1
-    labour_resource = costs['Resource\n(คน)'][:-10]
-    tasks_length = len(tasks)
+    labour_resource = costs['Resource\n(คน)'][:-13]
 
-    # Mx = []
     Mx = 0
     for i in range(Project_duration):
         cur_day = Start_Date + pd.to_timedelta(i, unit='d')
         cur_job = labour_resource[(cur_day >= Early_Start) & (cur_day <= Early_Finish)]
         cur_job = cur_job[pd.notnull(cur_job)]
-        # print(i)
-        # print(sum(cur_job))
         Mx = Mx + sum(cur_job)**2
-
-        # for j in range(tasks_length):
-        #     resource_demand = labour_resource[j]
-        #     if pd.isnull(resource_demand):
-        #         continue
-
-        #     if cur_day >= Early_Start[j] and cur_day <= Early_Finish[j]:
-        #         cur_mx = int(cur_mx + resource_demand)
-        # print(i+1, cur_day, '=', cur_mx)
-        # Mx.append(cur_mx**2)
-        # Mx = Mx + cur_mx**2
-    
-    # plt.plot(Mx)
-    # plt.ylabel('Mx^2/day')
-    # plt.show()
-    # return sum(Mx)
     return Mx
 
 # Pareto front
