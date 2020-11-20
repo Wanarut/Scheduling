@@ -4,12 +4,13 @@ import random as rn
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
+from scipy import interpolate
 
 # Set general parameters
-starting_population_size = 500
+starting_population_size = 1000
 maximum_generation = 40
-minimum_population_size = 300
-maximum_population_size = 500
+minimum_population_size = 800
+maximum_population_size = 1000
 print_interval = 1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -39,7 +40,7 @@ def main():
     print('Total Cost', cost_0, 'Baht')
     print('Project Duration', time_0, 'Days')
     print('Mx', mx_0, 'man^2')
-    print('> use' , tpi, 'sec/individual -> Total time', pd.to_timedelta(starting_population_size*maximum_generation*tpi, unit='s'))
+    print('> use' , tpi, 'sec/individual -> estimate time left', pd.to_timedelta(starting_population_size*maximum_generation*tpi, unit='s'))
     # return 0
 
     print('Start Optimization')
@@ -71,15 +72,18 @@ def main():
         # time per population
         tpp = timer()-start
         if generation % print_interval == 0:
-            print('> use' , tpp, 'sec/pop -> Total time left', pd.to_timedelta((maximum_generation-generation)*tpp, unit='s'))
+            print('> use' , pd.to_timedelta(tpp, unit='s'), '/pop -> estimate time left', pd.to_timedelta((maximum_generation-generation)*tpp, unit='s'))
     
     # Get final pareto front
-    scores = score_population(tasks, costs, population)
+    scores = score_population(tasks_0, costs, population)
     population_ids = np.arange(population.shape[0]).astype(int)
     pareto_front = identify_pareto(scores, population_ids)
     population = population[pareto_front, :]
     scores = -scores[pareto_front]
     
+    order = np.argsort(scores[:, 0])
+    population = population[order]
+    scores = scores[order]
     print(population)
     print(scores)
 
@@ -88,9 +92,14 @@ def main():
     y = scores[:, 1]
     z = scores[:, 2]
 
+    tck, u = interpolate.splprep([x,y,z], s=2)
+    u_fine = np.linspace(0,1,200)
+    x_fine, y_fine, z_fine = interpolate.splev(u_fine, tck)
+
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(x, y, z, color='b', marker='o')
+    ax.plot(x_fine, y_fine, z_fine, 'b')
 
     ax.set_xlabel('cost')
     ax.set_ylabel('time')
