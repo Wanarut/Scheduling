@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 from scipy import interpolate
-import sys
 
 # Set general parameters
 starting_population_size = 50
@@ -146,9 +145,9 @@ def breed_population(population):
     population_size = population.shape[0]
     # Create new population generating two children at a time
     for _ in range(int(population_size/2)):
-        parent_1 = population[rn.randint(0, population_size-1)]
-        parent_2 = population[rn.randint(0, population_size-1)]
-        child_1, child_2 = breed_by_crossover(parent_1, parent_2)
+        parent_1_loc = rn.randint(0, population_size-1)
+        parent_2_loc = rn.randint(0, population_size-1)
+        child_1, child_2 = breed_by_crossover(population, parent_1_loc, parent_2_loc)
         new_population.append(child_1)
         new_population.append(child_2)
 
@@ -160,24 +159,30 @@ def breed_population(population):
     return population
 
 
-def breed_by_crossover(parent_1, parent_2):
+def breed_by_crossover(population, parent_1_loc, parent_2_loc):
     """
     Combine two parent chromsomes by crossover to produce two children.
     """
+    parent_1 = population[parent_1_loc]
+    parent_2 = population[parent_2_loc]
     # Get length of chromosome
-    chromosome_length = len(parent_1)
+    # chromosome_length = len(parent_1)
 
-    # Pick crossover point, avoding ends of chromsome
-    crossover_point = rn.randint(1, chromosome_length-1)
-    crossover_point = 100
+    # # Pick crossover point, avoding ends of chromsome
+    # crossover_point = rn.randint(1, chromosome_length-2)
 
-    # Create children. np.hstack joins two arrays
-    child_1 = np.vstack((parent_1[0:crossover_point],
-                         parent_2[crossover_point:]))
+    # # Create children. np.hstack joins two arrays
+    # child_1 = np.vstack((parent_1[0:crossover_point],
+    #                      parent_2[crossover_point:]))
 
-    child_2 = np.vstack((parent_2[0:crossover_point],
-                         parent_1[crossover_point:]))
+    # child_2 = np.vstack((parent_2[0:crossover_point],
+    #                      parent_1[crossover_point:]))
 
+    center = (parent_1 + parent_2)/2
+    diff = abs(parent_2-parent_1)/2
+    child_1 = center - parent_1_loc/(parent_1_loc+parent_2_loc)*diff
+    child_2 = center + parent_2_loc/(parent_1_loc+parent_2_loc)*diff
+    
     # Return children
     return child_1, child_2
 
@@ -243,7 +248,7 @@ def calculate_cost_fitness(tasks, costs):
     else:
         PC = 0
     if PC > 0.1*(DC + IC):
-        return sys.maxsize
+        return DC + IC
         
     Total_cost = int(DC + IC + PC)
 
