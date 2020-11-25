@@ -5,12 +5,13 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 from scipy import interpolate
+import sys
 
 # Set general parameters
-starting_population_size = 1000
-maximum_generation = 40
-minimum_population_size = 800
-maximum_population_size = 1000
+starting_population_size = 50
+maximum_generation = 2
+minimum_population_size = 30
+maximum_population_size = 50
 print_interval = 1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -24,7 +25,8 @@ def main():
     
     chromosome_length = len(tasks)
     #all shift day equal zero
-    individual_0 = np.zeros(chromosome_length, int)
+    individual_0 = np.zeros((chromosome_length, 2), int)
+
     start = timer()
     for _ in range(4):
         tasks_0 = PDM_calculation(tasks, individual_0)
@@ -75,7 +77,7 @@ def main():
             print('> use' , pd.to_timedelta(tpp, unit='s'), '/pop -> estimate time left', pd.to_timedelta((maximum_generation-generation)*tpp, unit='s'))
     
     # Get final pareto front
-    scores = score_population(tasks_0, costs, population)
+    scores = score_population(tasks_0, costs, population, True)
     population_ids = np.arange(population.shape[0]).astype(int)
     pareto_front = identify_pareto(scores, population_ids)
     population = population[pareto_front, :]
@@ -101,9 +103,9 @@ def main():
     ax.scatter(x, y, z, color='b', marker='o')
     ax.plot(x_fine, y_fine, z_fine, 'b')
 
-    ax.set_xlabel('cost')
-    ax.set_ylabel('time')
-    ax.set_zlabel('Mx^2')
+    ax.set_xlabel('cost (Baht)')
+    ax.set_ylabel('time (days)')
+    ax.set_zlabel('Mx^2 (man^2)')
     plt.savefig('pareto.png')
 
     plt.show()
@@ -114,7 +116,8 @@ def create_population(individuals_size, chromosome_length, constraints):
     Create random population with given number of individuals and chroosome length.
     """
     # Set up an initial array of all zeros
-    population = np.zeros((individuals_size, chromosome_length), int)
+    population = np.zeros((individuals_size, chromosome_length, 2), int)
+
     # Loop through each row (individual)
     for i in range(individuals_size):
         # Loop through each task (chromosome)
@@ -124,8 +127,10 @@ def create_population(individuals_size, chromosome_length, constraints):
             if constraint < 0 :
                 continue
             # random number of shift day
-            # population[i, j] = int(rn.uniform(0, constraint))
-            population[i, j] = rn.randint(0, 5)
+            # population[i, j, 0] = rn.randint(0, 5)
+            # population[i, j, 1] = rn.randint(0, 1)
+            population[i, j, 0] = round(rn.uniform(0, 5))
+            population[i, j, 1] = round(rn.uniform(0, 1))
 
     return population
 
@@ -164,12 +169,13 @@ def breed_by_crossover(parent_1, parent_2):
 
     # Pick crossover point, avoding ends of chromsome
     crossover_point = rn.randint(1, chromosome_length-1)
+    crossover_point = 100
 
     # Create children. np.hstack joins two arrays
-    child_1 = np.hstack((parent_1[0:crossover_point],
+    child_1 = np.vstack((parent_1[0:crossover_point],
                          parent_2[crossover_point:]))
 
-    child_2 = np.hstack((parent_2[0:crossover_point],
+    child_2 = np.vstack((parent_2[0:crossover_point],
                          parent_1[crossover_point:]))
 
     # Return children
@@ -185,32 +191,16 @@ def randomly_mutate_population(population, mutation_probability, constraints):
     chromosome_length = population.shape[1]
     # Apply random mutation through each row (individual)
     for i in range(int(population_size/2)):
-        j = int(rn.uniform(0, chromosome_length-1))
+        j = round(rn.uniform(0, chromosome_length-1))
         constraint = constraints[j].days
         if constraint < 0 :
                 continue
-        shiftday = population[i, j]
-        shiftday = shiftday + int(rn.uniform(0, 5))
+        shiftday = population[i, j, 0]
+        shiftday = shiftday + round(rn.uniform(-5, 5))
         if shiftday < 0 or shiftday > constraint:
-            shiftday = rn.randint(0, 5)
-        population[i, j] = shiftday
-        # Loop through each task (chromosome)
-        # for j in range(chromosome_length):
-        #     # zero day for summary job
-        #     shiftday = population[i, j]
-        #     constraint = constraints[j].days
-        #     if constraint < 0 :
-        #         continue
-        #     if shiftday < 0 or shiftday > constraint:
-        #         # shiftday = int(rn.uniform(0, constraint))
-        #         shiftday = rn.randint(0, 1)
-        #     # chromosome mutation
-        #     if rn.uniform(0, 1) <= mutation_probability:
-        #         # random number of shift day
-        #         # population[i, j] = int(rn.uniform(0, constraint))
-        #         # shiftday = shiftday + int(rn.uniform(-5, 5))
-        #         shiftday = shiftday + rn.randint(0, 5)
-        #     population[i, j] = shiftday
+            shiftday = round(rn.uniform(0, 5))
+        population[i, j, 0] = shiftday
+        population[i, j, 1] = round(rn.uniform(0, 1))
 
     # Return mutation population
     return population
@@ -253,7 +243,7 @@ def calculate_cost_fitness(tasks, costs):
     else:
         PC = 0
     if PC > 0.1*(DC + IC):
-        PC = 9999999999
+        return sys.maxsize
         
     Total_cost = int(DC + IC + PC)
 
@@ -267,7 +257,7 @@ def calculate_time_fitness(tasks):
     T = max(tasks['Early_Finish'])
     Project_duration = (T-Start_Date).days + 1
     if Project_duration > max_project_duration:
-        Project_duration = 9999
+        Project_duration = max_project_duration*2
 
     return Project_duration
 
@@ -455,9 +445,14 @@ def PDM_calculation(tasks, individual):
     # Forward calculate (Early_Start, Early_Finish)
     tasks_length = tasks.shape[0]
     for i in range(tasks_length):
-        predecessors = tasks.at[i, 'Predecessors']
         duration = tasks.at[i, 'Duration']
-        shiftday = individual[i]
+        shiftday = individual[i][0]
+        option = individual[i][1]
+
+        if option == 0:
+            predecessors = tasks.at[i, 'Predecessors']
+        else:
+            predecessors = tasks.at[i, 'Predecessors2']
 
         # No relationship
         if pd.isnull(predecessors):

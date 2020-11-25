@@ -30,6 +30,9 @@
 # # h_set = list(map(int, h_set))
 # # print(h_set)
 
+# print(round(1.7))
+# exit()
+
 import numpy as np
 # s = np.random.randint(10, size=100)
 # print(s)
@@ -51,18 +54,18 @@ import numpy as np
 import pandas as pd
 result = pd.read_csv('result.csv')
 
-X = result['X']
-Y = result['Y']
-Z = result['Z']
+X = result['Y']
+Y = result['Z']
+Z = result['X']
 
 fig = plt.figure()
 ax = fig.gca(projection='3d')
 
 ax.plot(X, Y, Z, 'o')
 ax.plot_trisurf(X, Y, Z, cmap=plt.cm.Spectral)
-ax.set_xlabel('cost (Baht)')
-ax.set_ylabel('time (days)')
-ax.set_zlabel('Mx^2 (man^2)')
+ax.set_xlabel('time (days)')
+ax.set_ylabel('Mx^2 (man^2)')
+ax.set_zlabel('cost (Baht)')
 
 plt.show()
 
