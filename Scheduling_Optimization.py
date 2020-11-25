@@ -7,10 +7,10 @@ from timeit import default_timer as timer
 from scipy import interpolate
 
 # Set general parameters
-starting_population_size = 50
-maximum_generation = 2
-minimum_population_size = 30
-maximum_population_size = 50
+starting_population_size = 500
+maximum_generation = 100
+minimum_population_size = 100
+maximum_population_size = 500
 print_interval = 1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -179,7 +179,7 @@ def breed_by_crossover(population, parent_1_loc, parent_2_loc):
     #                      parent_1[crossover_point:]))
 
     center = (parent_1 + parent_2)/2
-    diff = abs(parent_2-parent_1)/2
+    diff = abs(parent_2 - parent_1)/2
     child_1 = center - parent_1_loc/(parent_1_loc+parent_2_loc)*diff
     child_2 = center + parent_2_loc/(parent_1_loc+parent_2_loc)*diff
     
