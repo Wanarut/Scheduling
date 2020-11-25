@@ -8,7 +8,7 @@ from scipy import interpolate
 
 # Set general parameters
 starting_population_size = 500
-maximum_generation = 100
+maximum_generation = 50
 minimum_population_size = 100
 maximum_population_size = 500
 print_interval = 1
@@ -458,6 +458,9 @@ def PDM_calculation(tasks, individual):
             predecessors = tasks.at[i, 'Predecessors']
         else:
             predecessors = tasks.at[i, 'Predecessors2']
+            if pd.isnull(predecessors):
+                predecessors = tasks.at[i, 'Predecessors']
+                individual[i][1] = 0
 
         # No relationship
         if pd.isnull(predecessors):
