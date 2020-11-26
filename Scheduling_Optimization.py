@@ -13,8 +13,8 @@ minimum_population_size = 100
 maximum_population_size = 500
 print_interval = 1
 
-Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
-Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
+Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p', errors = 'coerce')
+Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p', errors = 'coerce')
 max_project_duration = 780
 
 
@@ -41,11 +41,11 @@ def main():
     print('Total Cost', cost_0, 'Baht')
     print('Project Duration', time_0, 'Days')
     print('Mx', mx_0, 'man^2')
-    print('> use' , tpi, 'sec/individual -> estimate time left', pd.to_timedelta(starting_population_size*maximum_generation*tpi, unit='s'))
+    print('> use' , tpi, 'sec/individual -> estimate time left', pd.to_timedelta(starting_population_size*maximum_generation*tpi, unit='s', errors = 'coerce'))
     # return 0
 
     print('Start Optimization')
-    TF_constraints = tasks_0['Late_Finish'] - tasks_0['Early_Finish'] - pd.to_timedelta(tasks_0['Duration'])
+    TF_constraints = tasks_0['Late_Finish'] - tasks_0['Early_Finish'] - pd.to_timedelta(tasks_0['Duration'], errors = 'coerce')
 
     # Create starting population
     population = create_population(starting_population_size, chromosome_length, TF_constraints)
@@ -73,7 +73,7 @@ def main():
         # time per population
         tpp = timer()-start
         if generation % print_interval == 0:
-            print('> use' , pd.to_timedelta(tpp, unit='s'), '/pop -> estimate time left', pd.to_timedelta((maximum_generation-generation)*tpp, unit='s'))
+            print('> use' , pd.to_timedelta(tpp, unit='s'), '/pop -> estimate time left', pd.to_timedelta((maximum_generation-generation)*tpp, unit='s', errors = 'coerce'))
     
     # Get final pareto front
     scores = score_population(tasks_0, costs, population, True)
@@ -180,8 +180,8 @@ def breed_by_crossover(population, parent_1_loc, parent_2_loc):
 
     center = (parent_1 + parent_2)/2
     diff = abs(parent_2 - parent_1)/2
-    child_1 = center - parent_1_loc/(parent_1_loc+parent_2_loc)*diff
-    child_2 = center + parent_2_loc/(parent_1_loc+parent_2_loc)*diff
+    child_1 = center - (parent_1_loc+1)/(parent_1_loc+parent_2_loc+1)*diff
+    child_2 = center + (parent_2_loc+1)/(parent_1_loc+parent_2_loc+1)*diff
     
     # Return children
     return child_1, child_2
@@ -235,8 +235,8 @@ def calculate_cost_fitness(tasks, costs):
     """
     T = max(tasks['Early_Finish'])
 
-    MC = (costs['ค่าวัสดุต่อวัน\n(บาท/วัน)'][:-13]) * (pd.to_timedelta(tasks['Duration']).dt.days)
-    LC = (costs['ค่าแรงงานต่อวัน\n(บาท/วัน)'][:-13]) * (pd.to_timedelta(tasks['Duration']).dt.days)
+    MC = (costs['ค่าวัสดุต่อวัน\n(บาท/วัน)'][:-13]) * (pd.to_timedelta(tasks['Duration'], errors = 'coerce').dt.days)
+    LC = (costs['ค่าแรงงานต่อวัน\n(บาท/วัน)'][:-13]) * (pd.to_timedelta(tasks['Duration'], errors = 'coerce').dt.days)
     DC = sum(MC) + sum(LC)
     
     Daily_indirect_cost = costs.at[256, 'ค่าวัสดุรวม\n(บาท)']
@@ -279,7 +279,7 @@ def calculate_mx_fitness(tasks, costs):
 
     Mx = 0
     for i in range(Project_duration):
-        cur_day = Start_Date + pd.to_timedelta(i, unit='d')
+        cur_day = Start_Date + pd.to_timedelta(i, unit='d', errors = 'coerce')
         cur_job = labour_resource[(cur_day >= Early_Start) & (cur_day <= Early_Finish)]
         cur_job = cur_job[pd.notnull(cur_job)]
         Mx = Mx + sum(cur_job)**2
@@ -605,63 +605,63 @@ def PDM_calculation(tasks, individual):
 def NO_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
                     Si=0, Di=None, lag=None, exc=0, forward=None):
     if forward :
-        ESi = Start_Date + pd.to_timedelta(Si + exc, unit='d')
-        EFi = ESi + pd.to_timedelta(Di) + pd.to_timedelta(-1 + exc, unit='d')
+        ESi = Start_Date + pd.to_timedelta(Si + exc, unit='d', errors = 'coerce')
+        EFi = ESi + pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(-1 + exc, unit='d', errors = 'coerce')
         return ESi, EFi
     else :
         if pd.notnull(Finish_Date) :
             LFi = Finish_Date
         else :
             LFi = EFh
-        LSi = LFi - pd.to_timedelta(Di) + pd.to_timedelta(1 - exc, unit='d')
+        LSi = LFi - pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(1 - exc, unit='d', errors = 'coerce')
         return LSi, LFi
 
 
 def FS_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
                     Si=0, Di=None, lag=None, exc=0, forward=None):
     if forward :
-        ESi = EFh + pd.to_timedelta(Si, unit='d') + pd.to_timedelta(lag) + pd.to_timedelta(1 + exc, unit='d')
-        EFi = ESi + pd.to_timedelta(Di) + pd.to_timedelta(exc - 1, unit='d')
+        ESi = EFh + pd.to_timedelta(Si, unit='d', errors = 'coerce') + pd.to_timedelta(lag, errors = 'coerce') + pd.to_timedelta(1 + exc, unit='d', errors = 'coerce')
+        EFi = ESi + pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(exc - 1, unit='d', errors = 'coerce')
         return ESi, EFi
     else :
-        LFi = LSj - pd.to_timedelta(lag) + pd.to_timedelta(- 1 - exc, unit='d')
-        LSi = LFi - pd.to_timedelta(Di) + pd.to_timedelta(1 - exc, unit='d')
+        LFi = LSj - pd.to_timedelta(lag, errors = 'coerce') + pd.to_timedelta(- 1 - exc, unit='d', errors = 'coerce')
+        LSi = LFi - pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(1 - exc, unit='d', errors = 'coerce')
         return LSi, LFi
 
 
 def FF_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
                     Si=0, Di=None, lag=None, exc=0, forward=None):
     if forward :
-        EFi = EFh + pd.to_timedelta(Si, unit='d') + pd.to_timedelta(lag)
-        ESi = EFi - pd.to_timedelta(Di) + pd.to_timedelta(1 - exc, unit='d')
+        EFi = EFh + pd.to_timedelta(Si, unit='d', errors = 'coerce') + pd.to_timedelta(lag, errors = 'coerce')
+        ESi = EFi - pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(1 - exc, unit='d', errors = 'coerce')
         return ESi, EFi
     else :
-        LFi = LFj - pd.to_timedelta(lag)
-        LSi = LFi - pd.to_timedelta(Di) + pd.to_timedelta(1 - exc, unit='d')
+        LFi = LFj - pd.to_timedelta(lag, errors = 'coerce')
+        LSi = LFi - pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(1 - exc, unit='d', errors = 'coerce')
         return LSi, LFi
 
 
 def SF_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
                     Si=0, Di=None, lag=None, exc=0, forward=None):
     if forward :
-        EFi = ESh + pd.to_timedelta(Si, unit='d') + pd.to_timedelta(lag) + pd.to_timedelta(-1 - exc, unit='d')
-        ESi = EFi - pd.to_timedelta(Di) + pd.to_timedelta(1 - exc, unit='d')
+        EFi = ESh + pd.to_timedelta(Si, unit='d', errors = 'coerce') + pd.to_timedelta(lag, errors = 'coerce') + pd.to_timedelta(-1 - exc, unit='d', errors = 'coerce')
+        ESi = EFi - pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(1 - exc, unit='d', errors = 'coerce')
         return ESi, EFi
     else :
-        LSi = LFj - pd.to_timedelta(lag) + pd.to_timedelta(1 + exc, unit='d')
-        LFi = LSi + pd.to_timedelta(Di) + pd.to_timedelta(-1 + exc, unit='d')
+        LSi = LFj - pd.to_timedelta(lag, errors = 'coerce') + pd.to_timedelta(1 + exc, unit='d', errors = 'coerce')
+        LFi = LSi + pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(-1 + exc, unit='d', errors = 'coerce')
         return LSi, LFi
 
 
 def SS_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
                     Si=0, Di=None, lag=None, exc=0, forward=None):
     if forward :
-        ESi = ESh + pd.to_timedelta(Si, unit='d') + pd.to_timedelta(lag)
-        EFi = ESi + pd.to_timedelta(Di) + pd.to_timedelta(-1 + exc, unit='d')
+        ESi = ESh + pd.to_timedelta(Si, unit='d', errors = 'coerce') + pd.to_timedelta(lag, errors = 'coerce')
+        EFi = ESi + pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(-1 + exc, unit='d', errors = 'coerce')
         return ESi, EFi
     else :
-        LSi = LSj - pd.to_timedelta(lag)
-        LFi = LSi + pd.to_timedelta(Di) + pd.to_timedelta(-1 + exc, unit='d')
+        LSi = LSj - pd.to_timedelta(lag, errors = 'coerce')
+        LFi = LSi + pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(-1 + exc, unit='d', errors = 'coerce')
         return LSi, LFi
 
 
