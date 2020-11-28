@@ -159,12 +159,12 @@ def breed_population(population):
     return population
 
 
-def breed_by_crossover(population, parent_1_loc, parent_2_loc):
+def breed_by_crossover(population, fitness_1, fitness_2):
     """
     Combine two parent chromsomes by crossover to produce two children.
     """
-    parent_1 = population[parent_1_loc]
-    parent_2 = population[parent_2_loc]
+    parent_1 = population[fitness_1]
+    parent_2 = population[fitness_2]
     # Get length of chromosome
     # chromosome_length = len(parent_1)
 
@@ -180,8 +180,10 @@ def breed_by_crossover(population, parent_1_loc, parent_2_loc):
 
     center = (parent_1 + parent_2)/2
     diff = abs(parent_2 - parent_1)/2
-    child_1 = center - (parent_1_loc+1)/(parent_1_loc+parent_2_loc+1)*diff
-    child_2 = center + (parent_2_loc+1)/(parent_1_loc+parent_2_loc+1)*diff
+    child_1 = center - ((fitness_1+1)/(fitness_1+fitness_2+1))*diff
+    child_2 = center + ((fitness_2+1)/(fitness_1+fitness_2+1))*diff
+    child_1 = np.rint(child_1)
+    child_2 = np.rint(child_2)
     
     # Return children
     return child_1, child_2
