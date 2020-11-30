@@ -7,10 +7,10 @@ from timeit import default_timer as timer
 from scipy import interpolate
 
 # Set general parameters
-starting_population_size = 100
-maximum_generation = 10
-minimum_population_size = 80
-maximum_population_size = 100
+starting_population_size = 500
+maximum_generation = 30
+minimum_population_size = 300
+maximum_population_size = 500
 print_interval = 1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
