@@ -7,45 +7,53 @@ from timeit import default_timer as timer
 from scipy import interpolate
 
 # Set general parameters
-starting_population_size = 100
-maximum_generation = 50
-minimum_population_size = 80
-maximum_population_size = 100
+starting_population_size = 10
+maximum_generation = 5
+minimum_population_size = 8
+maximum_population_size = 10
 print_interval = 1
 
-Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p', errors = 'coerce')
-Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p', errors = 'coerce')
+Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
+Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
+Start_Days = (Start_Date-Start_Date).days
+Finish_Days = (Finish_Date-Start_Date).days
 max_project_duration = 780
-
 
 def main():
     tasks = pd.read_excel('Optimizing-CMU.xlsm', sheet_name='Task_Table')
     costs = pd.read_excel('สรุป Cost BOQ ตาม Activity ID RV.1.xlsx', sheet_name='BOQ Activity')
+    # Filter reduce data load
+    tasks = tasks[['Duration','Predecessors','Predecessors2','Successors','Early_Start','Early_Finish','Late_Start','Late_Finish']]
+    costs = costs[['Resource\n(คน)','ค่าวัสดุรวม\n(บาท)','ค่าวัสดุต่อวัน\n(บาท/วัน)','ค่าแรงงานต่อวัน\n(บาท/วัน)']]
+    tasks['Duration'] = pd.to_timedelta(tasks['Duration']).dt.days
     
     chromosome_length = len(tasks)
     #all shift day equal zero
     individual_0 = np.zeros((chromosome_length, 2), int)
 
     start = timer()
-    for _ in range(4):
-        tasks_0 = PDM_calculation(tasks, individual_0)
-    
+    tasks_0 = tasks.copy()
+    PDM_calculation(tasks_0, individual_0)
+    # print(tasks)
+    # print(tasks_0)
+    # return 0
+
     cost_0 = calculate_cost_fitness(tasks_0, costs)
     time_0 = calculate_time_fitness(tasks_0)
     mx_0 = calculate_mx_fitness(tasks_0, costs)
     # time per individual
-    tpi = timer()-start
+    tpp = timer()-start
 
     # No Optimization
     print('No Optimization')
     print('Total Cost', cost_0, 'Baht')
     print('Project Duration', time_0, 'Days')
     print('Mx', mx_0, 'man^2')
-    print('> use' , tpi, 'sec/individual -> estimate time left', pd.to_timedelta(starting_population_size*maximum_generation*tpi, unit='s', errors = 'coerce'))
+    print('> use' , tpp, 'sec/pop -> estimate time left', pd.to_timedelta(starting_population_size*maximum_generation*tpp, unit='s'))
     # return 0
 
     print('Start Optimization')
-    TF_constraints = tasks_0['Late_Finish'] - tasks_0['Early_Finish'] - pd.to_timedelta(tasks_0['Duration'], errors = 'coerce')
+    TF_constraints = tasks_0['Late_Finish'] - tasks_0['Early_Finish'] - tasks_0['Duration']
 
     # Create starting population
     population = create_population(starting_population_size, chromosome_length, TF_constraints)
@@ -64,19 +72,20 @@ def main():
         # Score population
         if generation % print_interval == 0:
             print('Generation (out of %i): gen %i' % (maximum_generation, generation + 1), end='', flush=True)
-            scores = score_population(tasks_0, costs, population, True)
+            scores = score_population(tasks, costs, population, True)
         else :
-            scores = score_population(tasks_0, costs, population)
+            scores = score_population(tasks, costs, population)
 
         # Build pareto front
         population = build_pareto_population(population, scores, minimum_population_size, maximum_population_size)
         # time per population
-        tpp = timer()-start
+        tpg = timer()-start
         if generation % print_interval == 0:
-            print('> use' , pd.to_timedelta(tpp, unit='s'), '/pop -> estimate time left', pd.to_timedelta((maximum_generation-generation)*tpp, unit='s', errors = 'coerce'))
+            print('> use' , pd.to_timedelta(tpg, unit='s'), '/gen -> estimate time left', pd.to_timedelta((maximum_generation-generation)*tpg, unit='s'))
     
     # Get final pareto front
-    scores = score_population(tasks_0, costs, population, True)
+    print('Final Pareto Generation', end='', flush=True)
+    scores = score_population(tasks, costs, population, True)
     population_ids = np.arange(population.shape[0]).astype(int)
     pareto_front = identify_pareto(scores, population_ids)
     population = population[pareto_front, :]
@@ -121,14 +130,14 @@ def create_population(individuals_size, chromosome_length, constraints):
     for i in range(individuals_size):
         # Loop through each task (chromosome)
         for j in range(chromosome_length):
-            constraint = constraints[j].days
+            constraint = constraints[j]
             # zero day for summary job
             if constraint < 0 :
                 continue
             # random number of shift day
             # population[i, j, 0] = rn.randint(0, 5)
             # population[i, j, 1] = rn.randint(0, 1)
-            population[i, j, 0] = round(rn.uniform(0, 5))
+            population[i, j, 0] = round(rn.uniform(0, 10))
             population[i, j, 1] = round(rn.uniform(0, 1))
 
     return population
@@ -199,13 +208,13 @@ def randomly_mutate_population(population, mutation_probability, constraints):
     # Apply random mutation through each row (individual)
     for i in range(int(population_size/2)):
         j = round(rn.uniform(0, chromosome_length-1))
-        constraint = constraints[j].days
+        constraint = constraints[j]
         if constraint < 0 :
                 continue
         shiftday = population[i, j, 0]
-        shiftday = shiftday + round(rn.uniform(-5, 5))
+        shiftday = shiftday + round(rn.uniform(-10, 10))
         if shiftday < 0 or shiftday > constraint:
-            shiftday = round(rn.uniform(0, 5))
+            shiftday = round(rn.uniform(0, 10))
         population[i, j, 0] = shiftday
         population[i, j, 1] = round(rn.uniform(0, 1))
 
@@ -224,7 +233,8 @@ def score_population(tasks, costs, population, display=False):
     for i in range(population_size):
         if display and i % show_interval == 0 :
             print('.', end='', flush=True)
-        shift_tasks = PDM_calculation(tasks, population[i])
+        shift_tasks = tasks.copy()
+        PDM_calculation(shift_tasks, population[i])
         scores[i, 0] = -calculate_cost_fitness(shift_tasks, costs)
         scores[i, 1] = -calculate_time_fitness(shift_tasks)
         scores[i, 2] = -calculate_mx_fitness(shift_tasks, costs)
@@ -237,22 +247,22 @@ def calculate_cost_fitness(tasks, costs):
     """
     T = max(tasks['Early_Finish'])
 
-    MC = (costs['ค่าวัสดุต่อวัน\n(บาท/วัน)'][:-13]) * (pd.to_timedelta(tasks['Duration'], errors = 'coerce').dt.days)
-    LC = (costs['ค่าแรงงานต่อวัน\n(บาท/วัน)'][:-13]) * (pd.to_timedelta(tasks['Duration'], errors = 'coerce').dt.days)
+    MC = costs['ค่าวัสดุต่อวัน\n(บาท/วัน)'][:-13] * tasks['Duration']
+    LC = costs['ค่าแรงงานต่อวัน\n(บาท/วัน)'][:-13] * tasks['Duration']
     DC = sum(MC) + sum(LC)
     
     Daily_indirect_cost = costs.at[256, 'ค่าวัสดุรวม\n(บาท)']
-    IC = Daily_indirect_cost * (T-Start_Date).days
+    IC = Daily_indirect_cost * (T-Start_Days)
     
     Daily_penalty_cost = costs.at[258, 'ค่าวัสดุรวม\n(บาท)']
-    if (T-Finish_Date).days > 0:
-        PC = Daily_penalty_cost * (T-Finish_Date).days
+    if (T-Finish_Days) > 0:
+        PC = Daily_penalty_cost * (T-Finish_Days)
     else:
         PC = 0
     if PC > 0.1*(DC + IC):
-        return DC + IC
+        PC = 0.1*(DC + IC)
         
-    Total_cost = int(DC + IC + PC)
+    Total_cost = DC + IC + PC
 
     return Total_cost
 
@@ -262,9 +272,9 @@ def calculate_time_fitness(tasks):
     Calculate fitness scores in each solution.
     """
     T = max(tasks['Early_Finish'])
-    Project_duration = (T-Start_Date).days + 1
+    Project_duration = T-Start_Days + 1
     if Project_duration > max_project_duration:
-        Project_duration = max_project_duration*2
+        Project_duration = max_project_duration
 
     return Project_duration
 
@@ -276,12 +286,12 @@ def calculate_mx_fitness(tasks, costs):
     Early_Start = tasks['Early_Start']
     Early_Finish = tasks['Early_Finish']
     T = max(Early_Finish)
-    Project_duration = (T-Start_Date).days + 1
+    Project_duration = int(T - Start_Days + 1)
     labour_resource = costs['Resource\n(คน)'][:-13]
 
     Mx = 0
     for i in range(Project_duration):
-        cur_day = Start_Date + pd.to_timedelta(i, unit='d', errors = 'coerce')
+        cur_day = Start_Days + i
         cur_job = labour_resource[(cur_day >= Early_Start) & (cur_day <= Early_Finish)]
         cur_job = cur_job[pd.notnull(cur_job)]
         Mx = Mx + sum(cur_job)**2
@@ -447,223 +457,225 @@ def calculate_crowding(scores):
     return crowding_distances
 
 # PDM network
-def PDM_calculation(tasks, individual):
-    # for _ in range(4):
+def PDM_Forward(i, tasks, individual):
+    # Calculated
+    if pd.notnull(tasks.at[i, 'Early_Start']):
+        return
+    
+    shiftday = individual[i, 0]
+    option = individual[i, 1]
+    
     # Forward calculate (Early_Start, Early_Finish)
+    if option == 0:
+        predecessors = tasks.at[i, 'Predecessors']
+    else:
+        predecessors = tasks.at[i, 'Predecessors2']
+        if pd.isnull(predecessors):
+            predecessors = tasks.at[i, 'Predecessors']
+            individual[i, 1] = 0
+    duration = tasks.at[i, 'Duration']
+
+    # No relationship
+    if pd.isnull(predecessors):
+        tasks.at[i, 'Early_Start'], tasks.at[i, 'Early_Finish'] = NO_calculation(Di=duration, Si=shiftday, forward=True)
+    else:
+        early_set = []
+        predecessors = str(predecessors).split(',')
+        for predecessor in predecessors:
+            lag_loc = max(predecessor.find('+'), predecessor.find('-'))
+            if lag_loc != -1:
+                lag_time = predecessor[lag_loc:]
+                lag_time = pd.to_timedelta(lag_time).days
+            else :
+                lag_time = 0
+            
+            FS_loc = predecessor.find('FS')
+            FF_loc = predecessor.find('FF')
+            SF_loc = predecessor.find('SF')
+            SS_loc = predecessor.find('SS')
+            
+            # FS relationship
+            if FS_loc != -1:
+                h = int(predecessor[:FS_loc])
+                h = h - 1
+                PDM_Forward(h, tasks, individual)
+                early_set.append(FS_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=duration, Si=shiftday, lag=lag_time, forward=True))
+
+            # FF relationship
+            elif FF_loc != -1:
+                h = int(predecessor[:FF_loc])
+                h = h - 1
+                PDM_Forward(h, tasks, individual)
+                early_set.append(FF_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=duration, Si=shiftday, lag=lag_time, forward=True))
+
+            # SF relationship
+            elif SF_loc != -1:
+                h = int(predecessor[:SF_loc])
+                h = h - 1
+                PDM_Forward(h, tasks, individual)
+                early_set.append(SF_calculation(ESh=tasks.at[h, 'Early_Start'], Di=duration, Si=shiftday, lag=lag_time, forward=True))
+
+            # SS relationship
+            elif SS_loc != -1:
+                h = int(predecessor[:SS_loc])
+                h = h - 1
+                PDM_Forward(h, tasks, individual)
+                early_set.append(SS_calculation(ESh=tasks.at[h, 'Early_Start'], Di=duration, Si=shiftday, lag=lag_time, forward=True))
+            
+            # FS relationship
+            else:
+                h = int(predecessor)
+                h = h - 1
+                PDM_Forward(h, tasks, individual)
+                early_set.append(FS_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=duration, Si=shiftday, lag=lag_time, forward=True))
+            
+        early_set = np.array(early_set).T.tolist()
+        max_es = max(early_set[0])
+        max_ef = max(early_set[1])
+        # h_es = h_set[early_set[0].index(max_es)]
+        # h_ef = h_set[early_set[1].index(max_ef)]
+        tasks.at[i, 'Early_Start'] = max_es
+        tasks.at[i, 'Early_Finish'] = max_ef
+
+
+def PDM_Backward(i, tasks, individual):
+    # Backward calculate (Late_Start, Late_Finish)
+    if pd.notnull(tasks.at[i, 'Late_Start']):
+        return
+
+    successors = tasks.at[i, 'Successors']
+    duration = tasks.at[i, 'Duration']
+
+    # No relationship
+    if pd.isnull(successors):
+        tasks.at[i, 'Late_Start'], tasks.at[i, 'Late_Finish'] = NO_calculation(EFh=max(tasks['Early_Finish']), Di=duration, forward=False)
+    else:
+        late_set = []
+        successors = str(successors).split(',')
+        for successor in successors:
+            lag_loc = max(successor.find('+'), successor.find('-'))
+            if lag_loc != -1:
+                lag_time = successor[lag_loc:]
+                lag_time = pd.to_timedelta(lag_time).days
+            else :
+                lag_time = 0
+            
+            FS_loc = successor.find('FS')
+            FF_loc = successor.find('FF')
+            SF_loc = successor.find('SF')
+            SS_loc = successor.find('SS')
+            
+            # FS relationship
+            if FS_loc != -1:
+                j = int(successor[:FS_loc])
+                j = j - 1
+                PDM_Backward(j, tasks, individual)
+                late_set.append(FS_calculation(LSj=tasks.at[j, 'Late_Start'], Di=duration, lag=lag_time, forward=False))
+
+            # FF relationship
+            elif FF_loc != -1:
+                j = int(successor[:FF_loc])
+                j = j - 1
+                PDM_Backward(j, tasks, individual)
+                late_set.append(FF_calculation(LFj=tasks.at[j, 'Late_Finish'], Di=duration, lag=lag_time, forward=False))
+
+            # SF relationship
+            elif SF_loc != -1:
+                j = int(successor[:SF_loc])
+                j = j - 1
+                PDM_Backward(j, tasks, individual)
+                late_set.append(SF_calculation(LFj=tasks.at[j, 'Late_Finish'], Di=duration, lag=lag_time, forward=False))
+
+            # SS relationship
+            elif SS_loc != -1:
+                j = int(successor[:SS_loc])
+                j = j - 1
+                PDM_Backward(j, tasks, individual)
+                late_set.append(SS_calculation(LSj=tasks.at[j, 'Late_Start'], Di=duration, lag=lag_time, forward=False))
+            
+            # FS relationship
+            else:
+                j = int(successor[:FS_loc])
+                j = j - 1
+                PDM_Backward(j, tasks, individual)
+                late_set.append(FS_calculation(LSj=tasks.at[j, 'Late_Start'], Di=duration, lag=lag_time, forward=False))
+
+        late_set = np.array(late_set).T.tolist()
+        min_ls = min(late_set[0])
+        min_lf = min(late_set[1])
+        # h_ls = j_set[late_set[0].index(min_ls)]
+        # h_lf = j_set[late_set[1].index(min_lf)]
+        tasks.at[i, 'Late_Start'] = min_ls
+        tasks.at[i, 'Late_Finish'] = min_lf
+
+
+def PDM_calculation(tasks, individual):
     tasks_length = tasks.shape[0]
     for i in range(tasks_length):
-        duration = tasks.at[i, 'Duration']
-        shiftday = individual[i][0]
-        option = individual[i][1]
-
-        if option == 0:
-            predecessors = tasks.at[i, 'Predecessors']
-        else:
-            predecessors = tasks.at[i, 'Predecessors2']
-            if pd.isnull(predecessors):
-                predecessors = tasks.at[i, 'Predecessors']
-                individual[i][1] = 0
-
-        # No relationship
-        if pd.isnull(predecessors):
-            tasks.at[i, 'Early_Start'], tasks.at[i, 'Early_Finish'] = NO_calculation(Di=duration, Si=shiftday, forward=True)
-        else:
-            predecessors = str(predecessors).split(',')
-            for predecessor in predecessors:
-                lag_loc = max(str(predecessor).find('+'), str(predecessor).find('-'))
-                if lag_loc != -1:
-                    lag_time = str(predecessor)[lag_loc:]
-                else :
-                    lag_time = '+0 days'
-                
-                FS_loc = str(predecessor).find('FS')
-                FF_loc = str(predecessor).find('FF')
-                SF_loc = str(predecessor).find('SF')
-                SS_loc = str(predecessor).find('SS')
-                
-                early_set = []
-                # FS relationship
-                if FS_loc != -1:
-                    h_set = str(predecessor[:FS_loc]).split(',')
-                    h_set = list(map(int, h_set))
-                    for h in h_set:
-                        h = h - 1
-                        early_set.append(FS_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=duration, Si=shiftday, lag=lag_time, forward=True))
-
-                # FF relationship
-                elif FF_loc != -1:
-                    h_set = str(predecessor[:FF_loc]).split(',')
-                    h_set = list(map(int, h_set))
-                    for h in h_set:
-                        h = h - 1
-                        early_set.append(FF_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=duration, Si=shiftday, lag=lag_time, forward=True))
-
-                # SF relationship
-                elif SF_loc != -1:
-                    h_set = str(predecessor[:SF_loc]).split(',')
-                    h_set = list(map(int, h_set))
-                    for h in h_set:
-                        h = h - 1
-                        early_set.append(SF_calculation(ESh=tasks.at[h, 'Early_Start'], Di=duration, Si=shiftday, lag=lag_time, forward=True))
-
-                # SS relationship
-                elif SS_loc != -1:
-                    h_set = str(predecessor[:SS_loc]).split(',')
-                    h_set = list(map(int, h_set))
-                    for h in h_set:
-                        h = h - 1
-                        early_set.append(SS_calculation(ESh=tasks.at[h, 'Early_Start'], Di=duration, Si=shiftday, lag=lag_time, forward=True))
-                
-                # FS relationship
-                else:
-                    h_set = str(predecessor).split(',')
-                    h_set = list(map(int, h_set))
-                    for h in h_set:
-                        h = h - 1
-                        early_set.append(FS_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=duration, Si=shiftday, lag=lag_time, forward=True))
-                
-                early_set = np.array(early_set).T.tolist()
-                max_es = max(early_set[0])
-                max_ef = max(early_set[1])
-                # h_es = h_set[early_set[0].index(max_es)]
-                # h_ef = h_set[early_set[1].index(max_ef)]
-                tasks.at[i, 'Early_Start'] = max_es
-                tasks.at[i, 'Early_Finish'] = max_ef
-    
-    # Backward calculate (Late_Start, Late_Finish)
-    for i in range(tasks_length-1, -1, -1):
-        successors = tasks.at[i, 'Successors']
-        duration = tasks.at[i, 'Duration']
-
-        # No relationship
-        if pd.isnull(successors):
-            tasks.at[i, 'Late_Start'], tasks.at[i, 'Late_Finish'] = NO_calculation(EFh=max(tasks['Early_Finish']), Di=duration, forward=False)
-        else:
-            successors = str(successors).split(',')
-            for successor in successors:
-                lag_loc = max(str(successor).find('+'), str(successor).find('-'))
-                if lag_loc != -1:
-                    lag_time = str(successor)[lag_loc:]
-                else :
-                    lag_time = '+0 days'
-                
-                FS_loc = str(successor).find('FS')
-                FF_loc = str(successor).find('FF')
-                SF_loc = str(successor).find('SF')
-                SS_loc = str(successor).find('SS')
-                
-                late_set = []
-                # FS relationship
-                if FS_loc != -1:
-                    j_set = str(successor[:FS_loc]).split(',')
-                    j_set = list(map(int, j_set))
-                    for j in j_set:
-                        j = j - 1
-                        late_set.append(FS_calculation(LSj=tasks.at[j, 'Late_Start'], Di=duration, lag=lag_time, forward=False))
-
-                # FF relationship
-                elif FF_loc != -1:
-                    j_set = str(successor[:FF_loc]).split(',')
-                    j_set = list(map(int, j_set))
-                    for j in j_set:
-                        j = j - 1
-                        late_set.append(FF_calculation(LFj=tasks.at[j, 'Late_Finish'], Di=duration, lag=lag_time, forward=False))
-
-                # SF relationship
-                elif SF_loc != -1:
-                    j_set = str(successor[:SF_loc]).split(',')
-                    j_set = list(map(int, j_set))
-                    for j in j_set:
-                        j = j - 1
-                        late_set.append(SF_calculation(LFj=tasks.at[j, 'Late_Finish'], Di=duration, lag=lag_time, forward=False))
-
-                # SS relationship
-                elif SS_loc != -1:
-                    j_set = str(successor[:SS_loc]).split(',')
-                    j_set = list(map(int, j_set))
-                    for j in j_set:
-                        j = j - 1
-                        late_set.append(SS_calculation(LSj=tasks.at[j, 'Late_Start'], Di=duration, lag=lag_time, forward=False))
-                
-                # FS relationship
-                else:
-                    j_set = str(successor).split(',')
-                    j_set = list(map(int, j_set))
-                    for j in j_set:
-                        j = j - 1
-                        late_set.append(FS_calculation(LSj=tasks.at[j, 'Late_Start'], Di=duration, lag=lag_time, forward=False))
-                
-                late_set = np.array(late_set).T.tolist()
-                min_ls = min(late_set[0])
-                min_lf = min(late_set[1])
-                # h_ls = j_set[late_set[0].index(min_ls)]
-                # h_lf = j_set[late_set[1].index(min_lf)]
-                tasks.at[i, 'Late_Start'] = min_ls
-                tasks.at[i, 'Late_Finish'] = min_lf
-
-    return tasks
+        PDM_Forward(i, tasks, individual)
+        PDM_Backward(tasks_length - i - 1, tasks, individual)
 
 
 def NO_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
                     Si=0, Di=None, lag=None, exc=0, forward=None):
     if forward :
-        ESi = Start_Date + pd.to_timedelta(Si + exc, unit='d', errors = 'coerce')
-        EFi = ESi + pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(-1 + exc, unit='d', errors = 'coerce')
+        ESi = Start_Days + Si + exc
+        EFi = ESi + Di - 1 + exc
         return ESi, EFi
     else :
-        if pd.notnull(Finish_Date) :
-            LFi = Finish_Date
+        if pd.notnull(Finish_Days) :
+            LFi = Finish_Days
         else :
             LFi = EFh
-        LSi = LFi - pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(1 - exc, unit='d', errors = 'coerce')
+        LSi = LFi - Di + 1 - exc
         return LSi, LFi
 
 
 def FS_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
                     Si=0, Di=None, lag=None, exc=0, forward=None):
     if forward :
-        ESi = EFh + pd.to_timedelta(Si, unit='d', errors = 'coerce') + pd.to_timedelta(lag, errors = 'coerce') + pd.to_timedelta(1 + exc, unit='d', errors = 'coerce')
-        EFi = ESi + pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(exc - 1, unit='d', errors = 'coerce')
+        ESi = EFh + Si + 1 + lag + exc
+        EFi = ESi + Di - 1 + exc
         return ESi, EFi
     else :
-        LFi = LSj - pd.to_timedelta(lag, errors = 'coerce') + pd.to_timedelta(- 1 - exc, unit='d', errors = 'coerce')
-        LSi = LFi - pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(1 - exc, unit='d', errors = 'coerce')
+        LFi = LSj - 1 - lag - exc
+        LSi = LFi - Di + 1 - exc
         return LSi, LFi
 
 
 def FF_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
                     Si=0, Di=None, lag=None, exc=0, forward=None):
     if forward :
-        EFi = EFh + pd.to_timedelta(Si, unit='d', errors = 'coerce') + pd.to_timedelta(lag, errors = 'coerce')
-        ESi = EFi - pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(1 - exc, unit='d', errors = 'coerce')
+        EFi = EFh + Si + lag
+        ESi = EFi - Di + 1 - exc
         return ESi, EFi
     else :
-        LFi = LFj - pd.to_timedelta(lag, errors = 'coerce')
-        LSi = LFi - pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(1 - exc, unit='d', errors = 'coerce')
+        LFi = LFj - lag
+        LSi = LFi - Di + 1 - exc
         return LSi, LFi
 
 
 def SF_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
                     Si=0, Di=None, lag=None, exc=0, forward=None):
     if forward :
-        EFi = ESh + pd.to_timedelta(Si, unit='d', errors = 'coerce') + pd.to_timedelta(lag, errors = 'coerce') + pd.to_timedelta(-1 - exc, unit='d', errors = 'coerce')
-        ESi = EFi - pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(1 - exc, unit='d', errors = 'coerce')
+        EFi = ESh + Si - 1 + lag - exc
+        ESi = EFi - Di + 1 - exc
         return ESi, EFi
     else :
-        LSi = LFj - pd.to_timedelta(lag, errors = 'coerce') + pd.to_timedelta(1 + exc, unit='d', errors = 'coerce')
-        LFi = LSi + pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(-1 + exc, unit='d', errors = 'coerce')
+        LSi = LFj - lag + 1 + exc
+        LFi = LSi + Di - 1 + exc
         return LSi, LFi
 
 
 def SS_calculation( ESh=None, EFh=None, LSj=None, LFj=None,
                     Si=0, Di=None, lag=None, exc=0, forward=None):
     if forward :
-        ESi = ESh + pd.to_timedelta(Si, unit='d', errors = 'coerce') + pd.to_timedelta(lag, errors = 'coerce')
-        EFi = ESi + pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(-1 + exc, unit='d', errors = 'coerce')
+        ESi = ESh + Si + lag
+        EFi = ESi + Di - 1 + exc
         return ESi, EFi
     else :
-        LSi = LSj - pd.to_timedelta(lag, errors = 'coerce')
-        LFi = LSi + pd.to_timedelta(Di, errors = 'coerce') + pd.to_timedelta(-1 + exc, unit='d', errors = 'coerce')
+        LSi = LSj - lag
+        LFi = LSi + Di - 1 + exc
         return LSi, LFi
 
 
