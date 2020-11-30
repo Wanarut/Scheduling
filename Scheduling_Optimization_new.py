@@ -7,10 +7,10 @@ from timeit import default_timer as timer
 from scipy import interpolate
 
 # Set general parameters
-starting_population_size = 10
-maximum_generation = 5
-minimum_population_size = 8
-maximum_population_size = 10
+starting_population_size = 100
+maximum_generation = 10
+minimum_population_size = 80
+maximum_population_size = 100
 print_interval = 1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -20,6 +20,7 @@ Finish_Days = (Finish_Date-Start_Date).days
 max_project_duration = 780
 
 def main():
+    start = timer()
     tasks = pd.read_excel('Optimizing-CMU.xlsm', sheet_name='Task_Table')
     costs = pd.read_excel('สรุป Cost BOQ ตาม Activity ID RV.1.xlsx', sheet_name='BOQ Activity')
     # Filter reduce data load
@@ -31,7 +32,6 @@ def main():
     #all shift day equal zero
     individual_0 = np.zeros((chromosome_length, 2), int)
 
-    start = timer()
     tasks_0 = tasks.copy()
     PDM_calculation(tasks_0, individual_0)
     # print(tasks)
@@ -41,6 +41,12 @@ def main():
     cost_0 = calculate_cost_fitness(tasks_0, costs)
     time_0 = calculate_time_fitness(tasks_0)
     mx_0 = calculate_mx_fitness(tasks_0, costs)
+    
+    # Create starting population
+    TF_constraints = tasks_0['Late_Finish'] - tasks_0['Early_Finish'] - tasks_0['Duration']
+    population = create_population(starting_population_size, chromosome_length, TF_constraints)
+    # print(population)
+
     # time per individual
     tpp = timer()-start
 
@@ -53,13 +59,6 @@ def main():
     # return 0
 
     print('Start Optimization')
-    TF_constraints = tasks_0['Late_Finish'] - tasks_0['Early_Finish'] - tasks_0['Duration']
-
-    # Create starting population
-    population = create_population(starting_population_size, chromosome_length, TF_constraints)
-    # print(population)
-
-    # return 0
     mutation_probability = 1.0/chromosome_length
     # Loop through the generations of genetic algorithm
     for generation in range(maximum_generation):
