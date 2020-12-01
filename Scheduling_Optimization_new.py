@@ -7,10 +7,10 @@ from timeit import default_timer as timer
 from scipy import interpolate
 
 # Set general parameters
-starting_population_size = 50
-maximum_generation = 2
-minimum_population_size = 30
-maximum_population_size = 50
+starting_population_size = 500
+maximum_generation = 50
+minimum_population_size = 300
+maximum_population_size = 500
 print_interval = 1
 fitness_based = True
 
