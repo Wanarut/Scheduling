@@ -3,6 +3,7 @@ scores = np.array(((79154978,724,1011454),(80212125,735,996754),(80019916,733,99
 # print(scores)
 scores = scores[np.argsort(scores[:, 1])]
 # print(abs(scores+scores)/2)
+np.savetxt('scores.csv', scores, delimiter=',', fmt='% 8d')
 fitness_1 = 0
 fitness_2 = 15
 parent_1 = np.array(((0,1),(1,1),(2,1),(3,1),(4,1),(5,1)))

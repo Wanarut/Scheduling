@@ -7,10 +7,10 @@ from timeit import default_timer as timer
 from scipy import interpolate
 
 # Set general parameters
-starting_population_size = 100
-maximum_generation = 10
-minimum_population_size = 80
-maximum_population_size = 100
+starting_population_size = 50
+maximum_generation = 2
+minimum_population_size = 30
+maximum_population_size = 50
 print_interval = 1
 fitness_based = True
 
@@ -94,8 +94,8 @@ def main():
     order = np.argsort(scores[:, 0])
     population = population[order]
     scores = scores[order]
-    for individual in population:
-        print(individual)
+    # for individual in population:
+    #     print(individual)
     for score in scores:
         print(score)
 
@@ -117,6 +117,8 @@ def main():
     ax.set_ylabel('time (days)')
     ax.set_zlabel('Mx^2 (man^2)')
     plt.savefig('pareto.png')
+    # np.savetxt('population.csv', population, delimiter=',', fmt='% 8d')
+    np.savetxt('scores.csv', scores, delimiter=',', fmt='% 8d')
 
     plt.show()
 
