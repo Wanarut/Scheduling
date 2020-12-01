@@ -7,11 +7,12 @@ from timeit import default_timer as timer
 from scipy import interpolate
 
 # Set general parameters
-starting_population_size = 500
-maximum_generation = 50
-minimum_population_size = 100
-maximum_population_size = 500
+starting_population_size = 100
+maximum_generation = 10
+minimum_population_size = 80
+maximum_population_size = 100
 print_interval = 1
+fitness_based = True
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -157,8 +158,10 @@ def breed_population(population):
     for _ in range(int(population_size/2)):
         parent_1_loc = rn.randint(0, population_size-1)
         parent_2_loc = rn.randint(0, population_size-1)
-        # child_1, child_2 = breed_by_traditional_crossover(population, parent_1_loc, parent_2_loc)
-        child_1, child_2 = breed_by_fitnessbased_crossover(population, parent_1_loc, parent_2_loc)
+        if fitness_based:
+            child_1, child_2 = breed_by_fitnessbased_crossover(population, parent_1_loc, parent_2_loc)
+        else:
+            child_1, child_2 = breed_by_traditional_crossover(population, parent_1_loc, parent_2_loc)
         new_population.append(child_1)
         new_population.append(child_2)
 
