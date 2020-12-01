@@ -7,10 +7,10 @@ from timeit import default_timer as timer
 from scipy import interpolate
 
 # Set general parameters
-starting_population_size = 10
-maximum_generation = 2
-minimum_population_size = 8
-maximum_population_size = 10
+starting_population_size = 500
+maximum_generation = 50
+minimum_population_size = 100
+maximum_population_size = 500
 print_interval = 1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -55,7 +55,7 @@ def main():
     print('Total Cost', cost_0, 'Baht')
     print('Project Duration', time_0, 'Days')
     print('Mx', mx_0, 'man^2')
-    print('> use' , tpp, 'sec/pop -> estimate time left', pd.to_timedelta(starting_population_size*maximum_generation*tpp, unit='s'))
+    print('> use' , tpp, 'sec/sol -> estimate time left', pd.to_timedelta(starting_population_size*maximum_generation*tpp, unit='s'))
     # return 0
 
     print('Start Optimization')
@@ -157,7 +157,8 @@ def breed_population(population):
     for _ in range(int(population_size/2)):
         parent_1_loc = rn.randint(0, population_size-1)
         parent_2_loc = rn.randint(0, population_size-1)
-        child_1, child_2 = breed_by_crossover(population, parent_1_loc, parent_2_loc)
+        # child_1, child_2 = breed_by_traditional_crossover(population, parent_1_loc, parent_2_loc)
+        child_1, child_2 = breed_by_fitnessbased_crossover(population, parent_1_loc, parent_2_loc)
         new_population.append(child_1)
         new_population.append(child_2)
 
@@ -169,25 +170,36 @@ def breed_population(population):
     return population
 
 
-def breed_by_crossover(population, fitness_1, fitness_2):
+def breed_by_traditional_crossover(population, parent_1_loc, parent_2_loc):
+    """
+    Combine two parent chromsomes by crossover to produce two children.
+    """
+    parent_1 = population[parent_1_loc]
+    parent_2 = population[parent_2_loc]
+    
+    # Traditional crossover
+    # Get length of chromosome
+    chromosome_length = len(parent_1)
+
+    # Pick crossover point, avoding ends of chromsome
+    crossover_point = rn.randint(1, chromosome_length-2)
+
+    # Create children. np.vstack joins two arrays
+    child_1 = np.vstack((parent_1[0:crossover_point], parent_2[crossover_point:]))
+    child_2 = np.vstack((parent_2[0:crossover_point], parent_1[crossover_point:]))
+    
+    # Return children
+    return child_1, child_2
+
+
+def breed_by_fitnessbased_crossover(population, fitness_1, fitness_2):
     """
     Combine two parent chromsomes by crossover to produce two children.
     """
     parent_1 = population[fitness_1]
     parent_2 = population[fitness_2]
-    # Get length of chromosome
-    # chromosome_length = len(parent_1)
 
-    # # Pick crossover point, avoding ends of chromsome
-    # crossover_point = rn.randint(1, chromosome_length-2)
-
-    # # Create children. np.hstack joins two arrays
-    # child_1 = np.vstack((parent_1[0:crossover_point],
-    #                      parent_2[crossover_point:]))
-
-    # child_2 = np.vstack((parent_2[0:crossover_point],
-    #                      parent_1[crossover_point:]))
-
+    #Fitness based crossover
     center = (parent_1 + parent_2)/2
     diff = abs(parent_2 - parent_1)/2
     child_1 = center - ((fitness_1+1)/(fitness_1+fitness_2+1))*diff
