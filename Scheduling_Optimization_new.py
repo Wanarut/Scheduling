@@ -7,10 +7,10 @@ from timeit import default_timer as timer
 from scipy import interpolate
 
 # Set general parameters
-starting_population_size = 500
-maximum_generation = 30
-minimum_population_size = 300
-maximum_population_size = 500
+starting_population_size = 10
+maximum_generation = 2
+minimum_population_size = 8
+maximum_population_size = 10
 print_interval = 1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -93,8 +93,10 @@ def main():
     order = np.argsort(scores[:, 0])
     population = population[order]
     scores = scores[order]
-    print(population)
-    print(scores)
+    for individual in population:
+        print(individual)
+    for score in scores:
+        print(score)
 
     # Plot Pareto front
     x = scores[:, 0]
