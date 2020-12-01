@@ -9,7 +9,7 @@ from scipy import interpolate
 # Set general parameters
 starting_population_size = 500
 maximum_generation = 50
-minimum_population_size = 300
+minimum_population_size = 200
 maximum_population_size = 500
 print_interval = 1
 fitness_based = True
@@ -21,7 +21,6 @@ Finish_Days = (Finish_Date-Start_Date).days
 max_project_duration = 780
 
 def main():
-    start = timer()
     tasks = pd.read_excel('Optimizing-CMU.xlsm', sheet_name='Task_Table')
     costs = pd.read_excel('สรุป Cost BOQ ตาม Activity ID RV.1.xlsx', sheet_name='BOQ Activity')
     # Filter reduce data load
@@ -29,6 +28,7 @@ def main():
     costs = costs[['Resource\n(คน)','ค่าวัสดุรวม\n(บาท)','ค่าวัสดุต่อวัน\n(บาท/วัน)','ค่าแรงงานต่อวัน\n(บาท/วัน)']]
     tasks['Duration'] = pd.to_timedelta(tasks['Duration']).dt.days
     
+    start = timer()
     chromosome_length = len(tasks)
     #all shift day equal zero
     individual_0 = np.zeros((chromosome_length, 2), int)
@@ -56,7 +56,7 @@ def main():
     print('Total Cost', cost_0, 'Baht')
     print('Project Duration', time_0, 'Days')
     print('Mx', mx_0, 'man^2')
-    print('> use' , tpp, 'sec/sol -> estimate time left', pd.to_timedelta(starting_population_size*maximum_generation*tpp, unit='s'))
+    print('> use' , tpp, 'sec/sol -> estimated time left', pd.to_timedelta(maximum_population_size*maximum_generation*tpp, unit='s'))
     # return 0
 
     print('Start Optimization')
@@ -81,7 +81,7 @@ def main():
         # time per population
         tpg = timer()-start
         if generation % print_interval == 0:
-            print('> use' , pd.to_timedelta(tpg, unit='s'), '/gen -> estimate time left', pd.to_timedelta((maximum_generation-generation)*tpg, unit='s'))
+            print('> use' , pd.to_timedelta(tpg, unit='s'), '/gen -> estimated time left', pd.to_timedelta((maximum_generation-generation)*tpg, unit='s'))
     
     # Get final pareto front
     print('Final Pareto Generation', end='', flush=True)
@@ -98,6 +98,10 @@ def main():
     #     print(individual)
     for score in scores:
         print(score)
+        
+    np.savetxt('shiftdays.csv', population[:,:,0].T, delimiter=',', fmt='% 4d')
+    np.savetxt('options.csv', population[:,:,1].T, delimiter=',', fmt='% 4d')
+    np.savetxt('scores.csv', scores, delimiter=',', fmt='% 8d')
 
     # Plot Pareto front
     x = scores[:, 0]
@@ -117,8 +121,6 @@ def main():
     ax.set_ylabel('time (days)')
     ax.set_zlabel('Mx^2 (man^2)')
     plt.savefig('pareto.png')
-    # np.savetxt('population.csv', population, delimiter=',', fmt='% 8d')
-    np.savetxt('scores.csv', scores, delimiter=',', fmt='% 8d')
 
     plt.show()
 
@@ -250,7 +252,7 @@ def score_population(tasks, costs, population, display=False):
 
     for i in range(population_size):
         if display and i % show_interval == 0 :
-            print('.', end='', flush=True)
+            print('-', end='', flush=True)
         shift_tasks = tasks.copy()
         PDM_calculation(shift_tasks, population[i])
         scores[i, 0] = -calculate_cost_fitness(shift_tasks, costs)
@@ -547,9 +549,9 @@ def PDM_Forward(i, tasks, individual):
                 PDM_Forward(h, tasks, individual)
                 early_set.append(FS_calculation(EFh=tasks.at[h, 'Early_Finish'], Di=duration, Si=shiftday, lag=lag_time, forward=True))
             
-        early_set = np.array(early_set).T.tolist()
-        max_es = max(early_set[0])
-        max_ef = max(early_set[1])
+        early_set = np.array(early_set)
+        max_es = max(early_set[:,0])
+        max_ef = max(early_set[:,1])
         # h_es = h_set[early_set[0].index(max_es)]
         # h_ef = h_set[early_set[1].index(max_ef)]
         tasks.at[i, 'Early_Start'] = max_es
@@ -618,9 +620,9 @@ def PDM_Backward(i, tasks, individual):
                 PDM_Backward(j, tasks, individual)
                 late_set.append(FS_calculation(LSj=tasks.at[j, 'Late_Start'], Di=duration, lag=lag_time, forward=False))
 
-        late_set = np.array(late_set).T.tolist()
-        min_ls = min(late_set[0])
-        min_lf = min(late_set[1])
+        late_set = np.array(late_set)
+        min_ls = min(late_set[:,0])
+        min_lf = min(late_set[:,1])
         # h_ls = j_set[late_set[0].index(min_ls)]
         # h_lf = j_set[late_set[1].index(min_lf)]
         tasks.at[i, 'Late_Start'] = min_ls
