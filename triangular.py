@@ -11,10 +11,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 scores = pd.read_csv('scores_fitness_based500_50.csv', header=None)
+scores = np.unique(scores, axis=0)
+print(scores)
 
-X = scores[0]
-Y = scores[1]
-Z = scores[2]
+X = scores[:,0]
+Y = scores[:,1]
+Z = scores[:,2]
 
 fig = plt.figure()
 ax = fig.gca(projection='3d')

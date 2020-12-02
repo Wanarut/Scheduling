@@ -104,9 +104,10 @@ def main():
     np.savetxt('scores.csv', scores, delimiter=',', fmt='% 8d')
 
     # Plot Pareto front
-    x = scores[:, 0]
-    y = scores[:, 1]
-    z = scores[:, 2]
+    scores = np.unique(scores, axis=0)
+    x = scores[:,0]
+    y = scores[:,1]
+    z = scores[:,2]
 
     tck, u = interpolate.splprep([x,y,z], s=2)
     u_fine = np.linspace(0,1,200)
