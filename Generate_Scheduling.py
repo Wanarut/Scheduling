@@ -54,12 +54,12 @@ def main():
             time_0 = calculate_time_fitness(shift_tasks)
             mx_0 = calculate_mx_fitness(shift_tasks, costs)
 
-            print('=====Solution', i, '=====')
+            print('=====Solution', i+1, '=====')
             print('Total Cost', cost_0, 'Baht')
             print('Project Duration', time_0, 'Days')
             print('Mx', mx_0, 'man^2')
 
-            save_tasks.to_excel(writer, sheet_name='solutoion_' + str(i+1))
+            save_tasks.to_excel(writer, sheet_name='solutoion_' + str(i+1), index=False)
 
 
 def calculate_cost_fitness(tasks, costs):

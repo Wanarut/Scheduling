@@ -8,8 +8,8 @@ from scipy import interpolate
 
 # Set general parameters
 starting_population_size = 500
-maximum_generation = 50
-minimum_population_size = 200
+maximum_generation = 100
+minimum_population_size = 100
 maximum_population_size = 500
 print_interval = 1
 fitness_based = True
@@ -62,40 +62,50 @@ def main():
     print('Start Optimization')
     mutation_probability = 1.0/chromosome_length
     # Loop through the generations of genetic algorithm
-    for generation in range(maximum_generation):
-        start = timer()
+    with pd.ExcelWriter('scores_log.xlsx') as writer:
+        for generation in range(maximum_generation):
+            start = timer()
 
-        # Breed
-        population = breed_population(population)
-        population = randomly_mutate_population(population, mutation_probability, TF_constraints)
+            # Breed
+            population = breed_population(population)
+            population = randomly_mutate_population(population, mutation_probability, TF_constraints)
 
-        # Score population
-        if generation % print_interval == 0:
-            print('Generation (out of %i): gen %i' % (maximum_generation, generation + 1), end='', flush=True)
-            scores = score_population(tasks, costs, population, True)
-        else :
-            scores = score_population(tasks, costs, population)
+            # Score population
+            if generation % print_interval == 0:
+                print('Generation (out of %i): gen %i' % (maximum_generation, generation + 1), end='', flush=True)
+                scores = score_population(tasks, costs, population, True)
+            else :
+                scores = score_population(tasks, costs, population)
 
-        # Build pareto front
-        population = build_pareto_population(population, scores, minimum_population_size, maximum_population_size)
-        # time per population
-        tpg = timer()-start
-        if generation % print_interval == 0:
-            print('> use' , pd.to_timedelta(tpg, unit='s'), '/gen -> estimated time left', pd.to_timedelta((maximum_generation-generation)*tpg, unit='s'))
+            # Build pareto front
+            population, scores = build_pareto_population(population, scores, minimum_population_size, maximum_population_size)
+            # order = np.argsort(scores[:, 2])
+            # population = population[order]
+            # scores = scores[order]
+
+            if generation % print_interval == 0:
+                # Save
+                scores_df = pd.DataFrame(-scores)
+                scores_df.to_excel(writer, sheet_name='gen_' + str(generation+1), index=False, header=False)
+
+            # time per population
+            tpg = timer()-start
+            if generation % print_interval == 0:
+                print('> use' , pd.to_timedelta(tpg, unit='s'), '/gen -> estimated time left', pd.to_timedelta((maximum_generation-generation)*tpg, unit='s'))
     
     # Get final pareto front
-    print('Final Pareto Generation', end='', flush=True)
-    scores = score_population(tasks, costs, population, True)
+    # print('Final Pareto Generation', end='', flush=True)
+    # scores = score_population(tasks, costs, population, True)
+
     population_ids = np.arange(population.shape[0]).astype(int)
     pareto_front = identify_pareto(scores, population_ids)
     population = population[pareto_front, :]
-    scores = -scores[pareto_front]
+    scores = scores[pareto_front]
     
-    order = np.argsort(scores[:, 0])
+    order = np.argsort(scores[:, 2])
     population = population[order]
-    scores = scores[order]
-    # for individual in population:
-    #     print(individual)
+    scores = -scores[order]
+
     for score in scores:
         print(score)
         
@@ -349,8 +359,10 @@ def build_pareto_population(population, scores, minimum_population_size, maximum
         unselected_set = set(all_population_ids) - set(pareto_front)
         unselected_population_ids = np.array(list(unselected_set))
 
-    population = population[pareto_front.astype(int)]
-    return population
+    index = pareto_front.astype(int)
+    population = population[index]
+    scores = scores[index]
+    return population, scores
 
 
 def identify_pareto(scores, population_ids):
