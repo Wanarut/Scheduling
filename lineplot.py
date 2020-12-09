@@ -4,7 +4,7 @@ from scipy import interpolate
 from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
 
-scores = pd.read_csv('scores_fitness_based500_50.csv', header=None)
+scores = pd.read_csv('scores.csv', header=None)
 scores = np.unique(scores, axis=0)
 print(scores)
 
