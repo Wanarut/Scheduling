@@ -20,12 +20,12 @@ def main():
     costs = costs[['Resource\n(คน)','ค่าวัสดุรวม\n(บาท)','ค่าวัสดุต่อวัน\n(บาท/วัน)','ค่าแรงงานต่อวัน\n(บาท/วัน)']]  
     filter_tasks['Duration'] = pd.to_timedelta(filter_tasks['Duration']).dt.days
 
-    shiftdays = pd.read_csv('shiftdays_fitness_based500_50.csv', header=None)
-    options = pd.read_csv('options_fitness_based500_50.csv', header=None)
+    shiftdays = pd.read_csv('shiftdays.csv', header=None)
+    options = pd.read_csv('options.csv', header=None)
 
     chromosome_length = len(tasks)
     
-    score_length = len(pd.read_csv('scores_fitness_based500_50.csv', header=None))
+    score_length = len(pd.read_csv('scores.csv', header=None))
     with pd.ExcelWriter('output_tasks.xlsx') as writer:
         for i in range(score_length):
             individual = np.zeros((chromosome_length, 2), int)
