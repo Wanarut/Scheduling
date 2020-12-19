@@ -44,11 +44,18 @@ def main():
             save_tasks['Early_Finish'] = Start_Date + pd.to_timedelta(shift_tasks['Early_Finish'], unit='d')
             save_tasks['Late_Start'] = Start_Date + pd.to_timedelta(shift_tasks['Late_Start'], unit='d')
             save_tasks['Late_Finish'] = Start_Date + pd.to_timedelta(shift_tasks['Late_Finish'], unit='d')
+            # Nov 10 '19
+            # save_tasks['Early_Start'] = save_tasks['Early_Start'].dt.strftime('%B %d, %Y %I:%M %p')
+            save_tasks['Early_Start'] = save_tasks['Early_Start'].dt.strftime('%b %w \'%y')
+            save_tasks['Early_Finish'] = save_tasks['Early_Finish'].dt.strftime('%b %w \'%y')
+            save_tasks['Late_Start'] = save_tasks['Late_Start'].dt.strftime('%b %w \'%y')
+            save_tasks['Late_Finish'] = save_tasks['Late_Finish'].dt.strftime('%b %w \'%y')
 
-            save_tasks['Early_Start'] = save_tasks['Early_Start'].dt.strftime('%B %d, %Y %I:%M %p')
-            save_tasks['Early_Finish'] = save_tasks['Early_Finish'].dt.strftime('%B %d, %Y %I:%M %p')
-            save_tasks['Late_Start'] = save_tasks['Late_Start'].dt.strftime('%B %d, %Y %I:%M %p')
-            save_tasks['Late_Finish'] = save_tasks['Late_Finish'].dt.strftime('%B %d, %Y %I:%M %p')
+            save_tasks['Constraint_Type'][individual[:,0]!=0] = 'Start No Earlier Than'
+            save_tasks['Constraint_Date'][individual[:,0]!=0] = save_tasks['Early_Start']
+
+            save_tasks['Constraint_Type'][individual[:,0]==0] = 'As Soon As Possible'
+            save_tasks['Constraint_Date'][individual[:,0]==0] = 'NA'
 
             cost_0 = calculate_cost_fitness(shift_tasks, costs)
             time_0 = calculate_time_fitness(shift_tasks)
