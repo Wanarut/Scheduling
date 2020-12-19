@@ -12,7 +12,8 @@ maximum_generation = 100
 minimum_population_size = 400
 maximum_population_size = 500
 print_interval = 10
-fitness_based = False
+fitness_based = True
+epsilon = 1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -216,12 +217,15 @@ def breed_by_fitnessbased_crossover(population, fitness_1, fitness_2):
     """
     parent_1 = population[fitness_1]
     parent_2 = population[fitness_2]
+    length = len(population)
 
     #Fitness based crossover
     center = (parent_1 + parent_2)/2
     diff = abs(parent_2 - parent_1)/2
-    child_1 = center - ((fitness_1+1)/(fitness_1+fitness_2+1))*diff
-    child_2 = center + ((fitness_2+1)/(fitness_1+fitness_2+1))*diff
+    weight_1 = 1 - ((fitness_1+epsilon)/(fitness_1+fitness_2+epsilon))
+    weight_2 = 1 - ((fitness_2+epsilon)/(fitness_1+fitness_2+epsilon))
+    child_1 = center - weight_1*diff
+    child_2 = center + weight_2*diff
     child_1 = np.rint(child_1)
     child_2 = np.rint(child_2)
     
