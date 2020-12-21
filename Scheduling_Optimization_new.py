@@ -12,8 +12,10 @@ maximum_generation = 100
 minimum_population_size = 400
 maximum_population_size = 500
 print_interval = 10
-fitness_based = True
+fitness_based = False
 epsilon = 1
+sigma = 10
+percentage = 0.1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -155,7 +157,7 @@ def create_population(individuals_size, chromosome_length, constraints):
             # random number of shift day
             # population[i, j, 0] = rn.randint(0, 5)
             # population[i, j, 1] = rn.randint(0, 1)
-            population[i, j, 0] = round(rn.uniform(0, 10))
+            population[i, j, 0] = round(rn.uniform(0, sigma))
             population[i, j, 1] = round(rn.uniform(0, 1))
 
     return population
@@ -247,9 +249,9 @@ def randomly_mutate_population(population, mutation_probability, constraints):
         if constraint < 0 :
                 continue
         shiftday = population[i, j, 0]
-        shiftday = shiftday + round(rn.uniform(-10, 10))
+        shiftday = shiftday + round(rn.uniform(-sigma, sigma))
         if shiftday < 0 or shiftday > constraint:
-            shiftday = round(rn.uniform(0, 10))
+            shiftday = round(rn.uniform(0, sigma))
         population[i, j, 0] = shiftday
         population[i, j, 1] = round(rn.uniform(0, 1))
 
@@ -294,8 +296,8 @@ def calculate_cost_fitness(tasks, costs):
         PC = Daily_penalty_cost * (T-Finish_Days)
     else:
         PC = 0
-    if PC > 0.1*(DC + IC):
-        PC = 0.1*(DC + IC)
+    if PC > percentage*(DC + IC):
+        PC = percentage*(DC + IC)
         
     Total_cost = DC + IC + PC
 
