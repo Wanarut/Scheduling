@@ -1,11 +1,45 @@
-SET population_size to 500
+SET starting_population_size to 500
+    minimum_population_size to 400
+    maximum_population_size to 500
+    maximum_generation = 100
 
-main{
-    tasks = load_tasks()
-    TF_constraints = load_constraints()
+main() {
+    LOAD tasks
+    LOAD costs
+    LOAD TF_constraints
+
     gene_length = tasks.length
+    population = create_population(starting_population_size, gene_length, TF_constraints)
 
-    population = create_population(population_size, gene_length, TF_constraints)
-    population = breed_by_crossover(population)
-    population = randomly_mutate_population(population, TF_constraints)
+    FOR generation = 0 to maximum_generation - 1
+        population = population_crossover(population)
+        population = randomly_mutate_population(population, TF_constraints)
+
+        fitness = population_fitness(tasks, costs, population)
+        population, fitness = build_pareto_population(population, fitness, minimum_population_size, maximum_population_size)
+        
+        SAVE fitness
+    ENDFOR
+    
+    pareto_id = identify_pareto fitness)
+    pareto = population[pareto_id]
+    fitness =  fitness[pareto_id]
+    
+    SAVE pareto
+    SAVE fitness
+}
+
+population_crossover(population) {
+    FOR i = 0 to half population size
+        parent 1 = random(population)
+        parent 2 = random(population)
+
+        crossover_point = random from 1 to gene_length - 2
+
+        child 1 = parent 1[0 to crossover_point] add parent 2[crossover_point to gene_length - 1]
+        child 2 = parent 2[0 to crossover_point] add parent 1[crossover_point to gene_length - 1]
+        
+        ADD child 1 in population
+        ADD child 2 in population
+    ENDFOR
 }
