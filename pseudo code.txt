@@ -1,0 +1,11 @@
+SET population_size to 500
+
+main{
+    tasks = load_tasks()
+    TF_constraints = load_constraints()
+    gene_length = tasks.length
+
+    population = create_population(population_size, gene_length, TF_constraints)
+    population = breed_by_crossover(population)
+    population = randomly_mutate_population(population, TF_constraints)
+}
