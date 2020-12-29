@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 from scipy import interpolate
+import math
 
 # Set general parameters
 starting_population_size = 500
@@ -219,7 +220,6 @@ def breed_by_fitnessbased_crossover(population, fitness_1, fitness_2):
     """
     parent_1 = population[fitness_1]
     parent_2 = population[fitness_2]
-    length = len(population)
 
     #Fitness based crossover
     center = (parent_1 + parent_2)/2
@@ -286,7 +286,7 @@ def calculate_cost_fitness(tasks, costs):
 
     MC = costs['ค่าวัสดุต่อวัน\n(บาท/วัน)'][:-13] * tasks['Duration']
     LC = costs['ค่าแรงงานต่อวัน\n(บาท/วัน)'][:-13] * tasks['Duration']
-    DC = sum(MC) + sum(LC)
+    DC = np.sum(MC) + np.sum(LC)
     
     Daily_indirect_cost = costs.at[256, 'ค่าวัสดุรวม\n(บาท)']
     IC = Daily_indirect_cost * (T-Start_Days)
@@ -331,7 +331,7 @@ def calculate_mx_fitness(tasks, costs):
         cur_day = Start_Days + i
         cur_job = labour_resource[(cur_day >= Early_Start) & (cur_day <= Early_Finish)]
         cur_job = cur_job[pd.notnull(cur_job)]
-        Mx = Mx + sum(cur_job)**2
+        Mx = Mx + math.pow(np.sum(cur_job), 2)
     return Mx
 
 # Pareto front
@@ -398,7 +398,7 @@ def reduce_by_crowding(scores, number_to_select):
     """
     This function selects a number of solutions based on tournament of
     crowding distances. Two members of the population are picked at
-    random. The one with the higher croding dostance is always picked
+    random. The one with the higher croding distance is always picked
     """
     population_ids = np.arange(scores.shape[0])
 
