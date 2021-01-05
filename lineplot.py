@@ -19,6 +19,7 @@ u_fine = np.linspace(0,1,200)
 x_fine, y_fine, z_fine = interpolate.splev(u_fine, tck)
 
 fig2 = plt.figure(2)
+fig2.tight_layout()
 ax = fig2.add_subplot(111, projection='3d')
 # ax.plot(x_true, y_true, z_true, 'b')
 ax.plot(X, Y, Z, 'o')
