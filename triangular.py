@@ -25,7 +25,7 @@ ax.plot(X, Y, Z, 'o')
 ax.plot_trisurf(X, Y, Z, cmap=plt.cm.Spectral)
 ax.set_xlabel('cost (Baht)')
 ax.set_ylabel('time (days)')
-ax.set_zlabel('Mx^2 (man^2)')
+ax.set_zlabel('Mx (man^2)')
 
 plt.show()
 

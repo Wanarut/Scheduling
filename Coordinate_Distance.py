@@ -28,5 +28,5 @@ for sheet in xlsx.sheet_names:
 distances.append(csv[2].mean())
 np_distance = np.array(distances)
 print(np_distance)
-np.savetxt('distances.csv', np_distance.T, delimiter=',')
+np.savetxt('distances.csv', np_distance.T, delimiter=',', fmt='% 16f')
     
