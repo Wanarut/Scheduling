@@ -13,9 +13,9 @@ maximum_generation = 100
 minimum_population_size = 400
 maximum_population_size = 500
 print_interval = 10
-fitness_based = False
+fitness_based = True
 epsilon = 1
-sigma = 10
+sigma = 20
 percentage = 0.1
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
