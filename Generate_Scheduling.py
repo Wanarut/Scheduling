@@ -87,8 +87,8 @@ def calculate_cost_fitness(tasks, costs):
         PC = Daily_penalty_cost * (T-Finish_Days)
     else:
         PC = 0
-    if PC > 0.1*(DC + IC):
-        PC = 0.1*(DC + IC)
+    # if PC > 0.1*(DC + IC):
+    #     PC = 0.1*(DC + IC)
         
     Total_cost = DC + IC + PC
 
@@ -101,8 +101,8 @@ def calculate_time_fitness(tasks):
     """
     T = max(tasks['Early_Finish'])
     Project_duration = T-Start_Days + 1
-    if Project_duration > max_project_duration:
-        Project_duration = max_project_duration
+    # if Project_duration > max_project_duration:
+    #     Project_duration = max_project_duration
 
     return Project_duration
 
