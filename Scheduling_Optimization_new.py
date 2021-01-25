@@ -9,11 +9,11 @@ import math
 
 # Set general parameters
 starting_population_size = 500
-maximum_generation = 100
+maximum_generation = 500
 minimum_population_size = 400
 maximum_population_size = 500
 print_interval = 10
-fitness_based = True
+fitness_based = False
 epsilon = 1
 sigma = 20
 percentage = 0.1
