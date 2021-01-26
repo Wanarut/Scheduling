@@ -1,28 +1,21 @@
+import multiprocessing as mp
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy import interpolate
-from mpl_toolkits.mplot3d import Axes3D
-import pandas as pd
 
-scores = pd.read_csv('scores_fitness_based500_50.csv', header=None)
+import time
 
-X = scores[0]
-Y = scores[1]
-Z = scores[2]
+work = np.array([["A", 5], ["B", 2], ["C", 1], ["D", 3]])
 
-tck, u = interpolate.splprep([X,Y,Z], s=2)
-# x_knots, y_knots, z_knots = interpolate.splev(tck[0], tck)
-u_fine = np.linspace(0,1,200)
-x_fine, y_fine, z_fine = interpolate.splev(u_fine, tck)
 
-fig2 = plt.figure(2)
-ax = fig2.add_subplot(111, projection='3d')
-# ax.plot(x_true, y_true, z_true, 'b')
-ax.plot(X, Y, Z, 'o')
-# ax.plot(x_knots, y_knots, z_knots, 'go')
-ax.plot(x_fine, y_fine, z_fine, 'b')
-ax.set_xlabel('cost (Baht)')
-ax.set_ylabel('time (days)')
-ax.set_zlabel('Mx^2 (man^2)')
-fig2.show()
-plt.show()
+def work_log(work_data):
+    print(" Process %s waiting %s seconds" % (work_data[0], work_data[1]))
+    time.sleep(int(work_data[1]))
+    print(" Process %s Finished." % work_data[0])
+
+
+def pool_handler():
+    p = mp.Pool(mp.cpu_count())
+    p.map(work_log, work)
+
+
+if __name__ == '__main__':
+    pool_handler()
