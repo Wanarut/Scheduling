@@ -8,11 +8,11 @@ from scipy import interpolate
 import math
 
 # Set general parameters
-starting_population_size = 500
-maximum_generation = 500
-minimum_population_size = 400
-maximum_population_size = 500
-print_interval = 10
+starting_population_size = 10
+maximum_generation = 5
+minimum_population_size = 10
+maximum_population_size = 10
+print_interval = 1
 fitness_based = False
 epsilon = 1
 sigma = 20
@@ -47,21 +47,20 @@ def main():
     cost_0 = calculate_cost_fitness(tasks_0, costs)
     time_0 = calculate_time_fitness(tasks_0)
     mx_0 = calculate_mx_fitness(tasks_0, costs)
+    # time per individual
+    tpp = timer()-start
     
     # Create starting population
     TF_constraints = tasks_0['Late_Finish'] - tasks_0['Early_Finish'] - tasks_0['Duration']
     population = create_population(starting_population_size, chromosome_length, TF_constraints)
     # print(population)
 
-    # time per individual
-    tpp = timer()-start
-
     # No Optimization
     print('No Optimization')
     print('Total Cost', cost_0, 'Baht')
     print('Project Duration', time_0, 'Days')
     print('Mx', mx_0, 'man^2')
-    print('> use' , tpp, 'sec/sol -> estimated time left', pd.to_timedelta(maximum_population_size*maximum_generation*tpp, unit='s'))
+    print('> use' , tpp, 'sec/sol -> estimated time left', pd.to_timedelta(maximum_population_size*maximum_generation*tpp*2.4, unit='s'))
     # return 0
 
     print('Start Optimization')

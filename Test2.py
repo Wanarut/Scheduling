@@ -17,5 +17,5 @@ def pool_handler():
     p.map(work_log, work)
 
 
-if __name__ == '__main__':
-    pool_handler()
+scores = np.zeros(3, int)
+print(scores)
