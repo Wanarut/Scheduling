@@ -22,9 +22,9 @@ sigma = 20
 percentage = 0.1
 
 # multi-processing
-cpu_core = int(mp.cpu_count()*0.5)
+cpu_core = int(mp.cpu_count()-1)
 p = mpd.Pool(cpu_core)
-p2 = mpd.Pool(cpu_core)
+# p2 = mpd.Pool(cpu_core)
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -65,7 +65,7 @@ def main():
     print('Total Cost', cost_0, 'Baht')
     print('Project Duration', time_0, 'Days')
     print('Mx', mx_0, 'man^2')
-    print('> use' , tpp, 'sec/sol -> estimated time left', pd.to_timedelta(maximum_population_size*maximum_generation*tpp*5.7/cpu_core, unit='s'))
+    print('> use' , tpp, 'sec/sol -> estimated time left', pd.to_timedelta(maximum_population_size*maximum_generation*tpp*15/cpu_core, unit='s'))
     # return 0
 
     print('Start Optimization')
@@ -79,17 +79,25 @@ def main():
             population = breed_population(population)
             population = randomly_mutate_population(population, mutation_probability, TF_constraints)
 
-            # Score population
+            split_population = np.array_split(population, cpu_core)
+            split_population = np.array(split_population)
+
+            # Parallel Score population by Multi-processing
             if generation % print_interval == 0:
                 print('Generation (out of %i): gen %i' % (maximum_generation, generation + 1), end='', flush=True)
-                # scores = score_solution(population, True)
-                func_with_param = partial(score_solution, True)
-                scores = p.map(func_with_param, population)
+                func_with_param = partial(score_population, True)
+                scores = p.map_async(func_with_param, split_population)
             else :
-                # scores = score_solution(population)
-                func_with_param = partial(score_solution, True)
-                scores = p.map(func_with_param, population)
-            scores = np.array(scores)
+                func_with_param = partial(score_population, False)
+                scores = p.map_async(func_with_param, split_population)
+
+            new_scores = None
+            for score in scores.get():
+                if new_scores is None:
+                    new_scores = score
+                else:
+                    new_scores = np.concatenate(([new_scores , score]), axis=0)
+            scores = new_scores
 
             # Build pareto front
             population, scores = build_pareto_population(population, scores, minimum_population_size, maximum_population_size)
@@ -266,16 +274,21 @@ def randomly_mutate_population(population, mutation_probability, constraints):
 
 
 # Fitness score
-def score_solution(display, solution):
-    # population_size = population.shape[0]
-    scores = np.zeros(3, int)
-    
-    # if i % show_interval == 0 :
-    shift_tasks = PDM_calculation(solution)
-    scores[0] = (-calculate_cost_fitness(shift_tasks))
-    scores[1] = (-calculate_time_fitness(shift_tasks))
-    scores[2] = (-calculate_mx_fitness(shift_tasks))
-    print('-', end='', flush=True)
+def score_population(display, population):
+    """
+    Loop through all objectives and request score/fitness of population.
+    """
+    population_size = population.shape[0]
+    scores = np.zeros((population_size, 3), int)
+    show_interval = int(population_size/(50*cpu_core)) + 1
+
+    for i in range(population_size):
+        if display and i % show_interval == 0 :
+            print('-', end='', flush=True)
+        shift_tasks = PDM_calculation(population[i])
+        scores[i, 0] = -calculate_cost_fitness(shift_tasks)
+        scores[i, 1] = -calculate_time_fitness(shift_tasks)
+        scores[i, 2] = -calculate_mx_fitness(shift_tasks)
     return scores
 
 
@@ -302,7 +315,7 @@ def calculate_cost_fitness(tasks):
         PC = percentage*(DC + IC) + 1
         
     Total_cost = DC + IC + PC
-    # print('-', end='', flush=True)
+
     return Total_cost
 
 
@@ -314,7 +327,7 @@ def calculate_time_fitness(tasks):
     Project_duration = T-Start_Days + 1
     if Project_duration > max_project_duration:
         Project_duration = max_project_duration + 1
-    # print('-', end='', flush=True)
+
     return Project_duration
 
 
@@ -323,19 +336,33 @@ def calculate_mx_fitness(tasks):
     """
     Calculate fitness scores in each solution.
     """
+    Early_Start = tasks['Early_Start']
     Early_Finish = tasks['Early_Finish']
     T = max(Early_Finish)
     Project_duration = int(T - Start_Days + 1)
+    labour_resource = costs['Resource\n(คน)'][:-13]
+
+    Mx = 0
+    for i in range(Project_duration):
+        cur_day = Start_Days + i
+        cur_job = labour_resource[(cur_day >= Early_Start) & (cur_day <= Early_Finish)]
+        cur_job = cur_job[pd.notnull(cur_job)]
+        Mx = Mx + math.pow(np.sum(cur_job), 2)
+    return Mx
+
+    # Early_Finish = tasks['Early_Finish']
+    # T = max(Early_Finish)
+    # Project_duration = int(T - Start_Days + 1)
 
     # start = timer()
-    func_with_param = partial(mx_per_day, tasks)
-    Mx = p2.map_async(func_with_param, range(Project_duration))
+    # func_with_param = partial(mx_per_day, tasks)
+    # Mx = p2.map_async(func_with_param, range(Project_duration))
     # p.close()
     # p.join()
     # print(timer()-start)
 
     # start = timer()
-    result = np.sum(Mx.get())
+    # result = np.sum(Mx.get())
     # print(result)
     # print(timer()-start)
 
@@ -345,8 +372,8 @@ def calculate_mx_fitness(tasks):
     # print(np.sum(Mx))
     # print(timer()-start)
     # exit()
-    # print('-', end='', flush=True)
-    return result
+
+    # return result
 
 
 def mx_per_day(tasks, i):
@@ -690,7 +717,7 @@ def PDM_calculation(solution):
     for i in range(tasks_length):
         PDM_Forward(i, temp_tasks, solution)
         PDM_Backward(tasks_length - i - 1, temp_tasks, solution)
-    # print('-', end='', flush=True)
+
     return temp_tasks
 
 
