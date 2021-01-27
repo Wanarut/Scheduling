@@ -280,7 +280,7 @@ def score_population(display, population):
     """
     population_size = population.shape[0]
     scores = np.zeros((population_size, 3), int)
-    show_interval = int(population_size/(50*cpu_core)) + 1
+    show_interval = int(cpu_core*population_size/50) + 1
 
     for i in range(population_size):
         if display and i % show_interval == 0 :
