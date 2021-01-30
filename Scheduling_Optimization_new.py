@@ -66,7 +66,7 @@ def main():
     print('Start Optimization')
     mutation_probability = 1.0/chromosome_length
     # Loop through the generations of genetic algorithm
-    with pd.ExcelWriter('scores_log.xlsx') as writer:
+    with pd.ExcelWriter('scores_log.xlsx') as writer: # pylint: disable=abstract-class-instantiated
         for generation in range(maximum_generation):
             start = timer()
 

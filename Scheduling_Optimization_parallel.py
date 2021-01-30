@@ -7,7 +7,6 @@ from timeit import default_timer as timer
 from scipy import interpolate
 import math
 import multiprocessing as mp
-# import multiprocessing.dummy as mpd
 from functools import partial
 
 # Set general parameters
@@ -23,7 +22,6 @@ percentage = 0.1
 
 # multi-processing
 cpu_core = int(mp.cpu_count()-1)
-# p2 = mpd.Pool(cpu_core)
 
 Start_Date = pd.to_datetime('October 17, 2018 5:00 PM', format='%B %d, %Y %I:%M %p')
 Finish_Date = pd.to_datetime('October 5, 2020 5:00 PM', format='%B %d, %Y %I:%M %p')
@@ -72,68 +70,68 @@ def main():
     print('Start Optimization')
     mutation_probability = 1.0/chromosome_length
     # Loop through the generations of genetic algorithm
-    with pd.ExcelWriter('scores_log.xlsx') as writer:
-        for generation in range(maximum_generation):
-            start = timer()
+    # with pd.ExcelWriter('scores_log.xlsx') as writer:
+    writer = pd.ExcelWriter('scores_log.xlsx') # pylint: disable=abstract-class-instantiated
+    for generation in range(maximum_generation):
+        mstart = timer()
 
-            # Breed
-            population = breed_population(population)
-            population = randomly_mutate_population(population, mutation_probability, TF_constraints)
+        # Breed
+        population = breed_population(population)
+        population = randomly_mutate_population(population, mutation_probability, TF_constraints)
+        # print('ga operate', timer()-mstart)
 
-            split_population = np.array_split(population, cpu_core)
-            split_population = np.array(split_population)
+        # start = timer()
+        split_population = np.array_split(population, cpu_core)
+        split_population = np.array(split_population)
+        # print('split', timer()-start)
 
-            population_size = population.shape[0]
-            scores = np.zeros((population_size, 3), int)
-            split_scores = np.array_split(scores, cpu_core)
-            split_scores = np.array(split_scores)
+        manager = mp.Manager()
+        return_dict = manager.dict()
+        jobs = []
 
-            manager = mp.Manager()
-            return_dict = manager.dict()
-            jobs = []
+        # start = timer()
+        # Parallel Score population by Multi-processing
+        if generation % print_interval == 0:
+            print('Generation (out of %i): gen %i' % (maximum_generation, generation + 1), end='', flush=True)
+            display = True
+        else :
+            display = False
+        
+        func_with_param = partial(score_population, display, tasks, costs, split_population)
+        for i in range(cpu_core):
+            process = mp.Process(target=func_with_param, args=(i, return_dict))
+            jobs.append(process)
+            process.start()
+        
+        for process in jobs:
+            process.join()
+        
+        new_scores = None
+        for score in return_dict.values():
+            if new_scores is None:
+                new_scores = score
+            else:
+                new_scores = np.concatenate(([new_scores , score]), axis=0)
+        scores = new_scores
+        # print('processes', timer()-start)
+        
+        # start = timer()
+        # Build pareto front
+        population, scores = build_pareto_population(population, scores, minimum_population_size, maximum_population_size)
+        # print('pareto', timer()-start)
 
-            # Parallel Score population by Multi-processing
-            if generation % print_interval == 0:
-                print('Generation (out of %i): gen %i' % (maximum_generation, generation + 1), end='', flush=True)
-                display = True
-            else :
-                display = False
+        # start = timer()
+        if generation % print_interval == 0:
+            # Save
+            scores_df = pd.DataFrame(-scores)
+            scores_df.to_excel(writer, sheet_name='gen_' + str(generation+1), index=False, header=False)
+        # print('write', timer()-start)
 
-            func_with_param = partial(score_population, display, tasks, costs, split_population)
-            # scores = p.map(func_with_param, split_population)
-            # scores = mp.Process(target=func_with_param, args=split_population)
-            # scores = score_population(True, population)
-            for i in range(cpu_core):
-                process = mp.Process(target=func_with_param, args=(i, return_dict))
-                jobs.append(process)
-                process.start()
-            
-            for process in jobs:
-                process.join()
-
-            new_scores = None
-            for score in return_dict.values():
-                if new_scores is None:
-                    new_scores = score
-                else:
-                    new_scores = np.concatenate(([new_scores , score]), axis=0)
-            scores = new_scores
-            # print(scores)
-            # exit()
-
-            # Build pareto front
-            population, scores = build_pareto_population(population, scores, minimum_population_size, maximum_population_size)
-
-            if generation % print_interval == 0:
-                # Save
-                scores_df = pd.DataFrame(-scores)
-                scores_df.to_excel(writer, sheet_name='gen_' + str(generation+1), index=False, header=False)
-
-            # time per population
-            tpg = timer()-start
-            if generation % print_interval == 0:
-                print('> use' , pd.to_timedelta(tpg, unit='s'), '/gen -> estimated time left', pd.to_timedelta((maximum_generation-generation)*tpg, unit='s'))
-    
+        # time per population
+        tpg = timer()-mstart
+        if generation % print_interval == 0:
+            print('> use' , pd.to_timedelta(tpg, unit='s'), '/gen -> estimated time left', pd.to_timedelta((maximum_generation-generation)*tpg, unit='s'))
+        # exit()
     # Get final pareto front
     # print('Final Pareto Generation', end='', flush=True)
 
